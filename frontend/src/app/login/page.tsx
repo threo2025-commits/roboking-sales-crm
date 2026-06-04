@@ -24,7 +24,6 @@ function dashboardPathForRole(_role: string) {
 export default function LoginPage() {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
-  const [resetLoginId, setResetLoginId] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,20 +45,6 @@ export default function LoginPage() {
       setError(friendlyLoginError(err));
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function requestReset() {
-    setError('');
-    setMessage('');
-    try {
-      await api('/auth/request-password-reset', {
-        method: 'POST',
-        body: JSON.stringify({ loginId: (resetLoginId || loginId).trim(), reason: 'Forgot password from sales portal login' })
-      });
-      setMessage('Reset request sent to Owner/Manager.');
-    } catch {
-      setError('Something went wrong. Please try again.');
     }
   }
 
@@ -127,20 +112,6 @@ export default function LoginPage() {
                 {isLoading ? 'Signing in...' : 'Login'}
               </button>
             </form>
-
-            <div className="mt-8 rounded-xl bg-slate-50 p-4">
-              <h3 className="font-bold text-slate-900">Forgot password?</h3>
-              <p className="mt-1 text-sm leading-6 text-slate-500">Send a reset request and your Owner/Manager will set a new password.</p>
-              <input
-                value={resetLoginId}
-                onChange={(e) => setResetLoginId(e.target.value)}
-                placeholder="Login ID"
-                className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-brandGold"
-              />
-              <button type="button" onClick={requestReset} className="mt-3 w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-900 transition hover:border-brandGold">
-                Send reset request
-              </button>
-            </div>
           </div>
         </section>
       </div>
