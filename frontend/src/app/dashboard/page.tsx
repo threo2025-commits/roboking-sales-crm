@@ -209,20 +209,21 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {leads.slice(0, 8).map((lead) => (
-                  <tr key={lead.id} className="border-t border-slate-100">
+                  <tr key={lead.id} className={`border-t ${lead.deletedAt ? 'border-red-200 bg-red-50 text-red-900' : 'border-slate-100'}`}>
                     <td className="py-4 font-semibold text-slate-950">
                       {lead.organization}
+                      {lead.deletedAt && <div className="text-xs font-bold uppercase text-red-700">Deleted lead</div>}
                       {lead.duplicateReason && <div className="text-xs text-amber-600">Duplicate contact found</div>}
                     </td>
                     <td>{lead.contactName || '-'}</td>
                     <td>{lead.phone || '-'}</td>
                     <td>
-                      <StatusBadge status={lead.status} />
+                      {lead.deletedAt ? <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">DELETED</span> : <StatusBadge status={lead.status} />}
                     </td>
                     <td>{lead.nextFollowupAt ? new Date(lead.nextFollowupAt).toLocaleString() : '-'}</td>
                     <td className="space-x-3 font-semibold text-brandGoldDark">
-                      <a href={lead.phone ? `tel:${lead.phone}` : '#'}>Call</a>
-                      <Link href="/communications">Message</Link>
+                      {!lead.deletedAt && <a href={lead.phone ? `tel:${lead.phone}` : '#'}>Call</a>}
+                      {!lead.deletedAt && <Link href="/communications">Message</Link>}
                       <Link href={`/leads/${lead.id}`}>View</Link>
                     </td>
                   </tr>

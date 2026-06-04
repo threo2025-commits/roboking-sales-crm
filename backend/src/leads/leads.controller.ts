@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -28,6 +28,10 @@ export class LeadsController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateLeadDto, @CurrentUser() user: any) { return this.leads.update(id, dto, user); }
+
+  @Delete(':id')
+  @Roles(Role.OWNER, Role.MANAGER)
+  delete(@Param('id') id: string, @CurrentUser() user: any) { return this.leads.softDelete(id, user); }
 
   @Post(':id/convert-to-client')
   convert(@Param('id') id: string, @CurrentUser() user: any) { return this.leads.convertToClient(id, user); }

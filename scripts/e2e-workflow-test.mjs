@@ -169,6 +169,13 @@ async function main() {
   const empAList = await request('/leads', { token: empA.accessToken });
   record('Employee cannot see another employee lead', !empAList.data.some((l) => l.id === leadB.data.id));
 
+  const empDeleteAttempt = await request(`/leads/${leadA.data.id}`, { token: empA.accessToken, method: 'DELETE', expected: [403] });
+  await request(`/leads/${leadA.data.id}`, { token: owner.accessToken, method: 'DELETE' });
+  const deletedOwnerView = await request('/leads', { token: owner.accessToken });
+  const deletedEmpView = await request('/leads', { token: empB.accessToken });
+  const deletedLeadForOwner = deletedOwnerView.data.find((l) => l.id === leadA.data.id);
+  record('Owner/Manager can delete lead and deleted lead is hidden from employees', empDeleteAttempt.status === 403 && !!deletedLeadForOwner?.deletedAt && !deletedEmpView.data.some((l) => l.id === leadA.data.id));
+
   const dupEmployee = await request('/leads', {
     token: empA.accessToken,
     method: 'POST',

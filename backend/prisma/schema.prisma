@@ -235,6 +235,8 @@ model Lead {
   duplicateOfId   String?
   duplicateReason String?
   sourceImportId  String?
+  deletedAt       DateTime?
+  deletedById     String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -252,6 +254,7 @@ model Lead {
   @@index([assignedToId])
   @@index([status])
   @@index([sourceImportId])
+  @@index([deletedAt])
 }
 
 model Deal {
