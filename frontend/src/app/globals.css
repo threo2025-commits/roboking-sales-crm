@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-navy: #071628;
+  --brand-gold: #f7b733;
+}
+
+body {
+  background: #f4f7fb;
+  color: #172033;
+}
+
+.card {
+  @apply rounded-2xl bg-white shadow-sm border border-slate-100;
+}

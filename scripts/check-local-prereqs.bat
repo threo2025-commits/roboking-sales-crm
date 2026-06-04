@@ -1,0 +1,9 @@
+@echo off
+echo Checking Node.js...
+node -v
+echo Checking npm...
+npm -v
+echo Checking PostgreSQL client, optional...
+psql --version
+echo If psql is not recognized, PostgreSQL may still work through pgAdmin, but DATABASE_URL must be valid.
+pause

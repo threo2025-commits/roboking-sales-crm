@@ -1,0 +1,33 @@
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { ChatService } from './chat.service';
+
+@Controller('chat')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ChatController {
+  constructor(private chat: ChatService) {}
+
+  @Get('conversations')
+  conversations(@CurrentUser() user: any) { return this.chat.conversations(user); }
+
+  @Get('conversations/:id/messages')
+  messages(@Param('id') id: string, @CurrentUser() user: any) { return this.chat.messages(id, user); }
+
+  @Post('groups')
+  @Roles(Role.OWNER, Role.MANAGER)
+  createGroup(@Body() body: { title: string; memberIds: string[]; linkedLeadId?: string; linkedDealId?: string }, @CurrentUser() user: any) {
+    return this.chat.createGroup(body.title, user.sub, body.memberIds, body.linkedLeadId, body.linkedDealId);
+  }
+
+  @Post('direct')
+  createDirect(@Body() body: { memberId: string }, @CurrentUser() user: any) {
+    return this.chat.createDirect(body.memberId, user);
+  }
+
+  @Post('messages')
+  send(@Body() body: { conversationId: string; body: string }, @CurrentUser() user: any) { return this.chat.sendMessage(body.conversationId, user.sub, body.body, user.role); }
+}

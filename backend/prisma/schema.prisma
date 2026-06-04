@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  PA_ADMIN_ASSISTANT
+  EMPLOYEE
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum LeadStatus {
+  NEW_LEAD
+  CONTACTED
+  STARTED
+  IN_PROGRESS
+  REQUIREMENT_COLLECTED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  QUOTATION_SENT
+  NEGOTIATION
+  PAYMENT_PENDING
+  CONVERTED
+  LOST
+  FOLLOW_UP_LATER
+  ON_HOLD
+  INVALID_CONTACT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CommunicationType {
+  CALL
+  WHATSAPP
+  EMAIL
+  MEETING
+  NOTE
+  CHAT
+}
+
+enum FollowupStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  CANCELLED
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  VALID
+  IMPORTED
+  DUPLICATE
+  FAILED
+}
+
+enum FileCategory {
+  CALL_RECORDING
+  EMAIL_ATTACHMENT
+  LEAD_DOCUMENT
+  EXCEL_IMPORT
+  QUOTATION
+  CHAT_FILE
+  PROFILE_IMAGE
+  OTHER
+}
+
+enum PasswordResetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum SessionEndReason {
+  LOGOUT
+  FORCE_LOGOUT
+  EXPIRED
+  PASSWORD_CHANGED
+}
+
+model User {
+  id                 String        @id @default(cuid())
+  name               String
+  loginId            String        @unique
+  email              String?       @unique
+  passwordHash       String
+  role               Role          @default(EMPLOYEE)
+  status             UserStatus    @default(ACTIVE)
+  phone              String?
+  avatarUrl          String?
+  managerId          String?
+  manager            User?         @relation("ManagerEmployees", fields: [managerId], references: [id])
+  employees          User[]        @relation("ManagerEmployees")
+  emailAddress       String?
+  emailSignature     String?
+  mustChangePassword Boolean       @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  createdLeads       Lead[]        @relation("CreatedLeads")
+  assignedLeads      Lead[]        @relation("AssignedLeads")
+  assignedDeals      Deal[]        @relation("AssignedDeals")
+  activities         Activity[]
+  followups          Followup[]
+  assignedTasks      Task[]        @relation("AssignedTasks")
+  createdTasks       Task[]        @relation("CreatedTasks")
+  callLogs           CallLog[]
+  createdCallLogs    CallLog[]      @relation("CreatedCallLogs")
+  sentEmails         EmailMessage[] @relation("SentEmails")
+  whatsappLogs       WhatsappLog[]
+  auditLogs          AuditLog[]
+  uploadedFiles      FileAsset[]
+  notifications      Notification[]
+  chatMemberships    ChatMember[]
+  chatMessages       ChatMessage[]
+  imports            ExcelImport[]
+  userSessions       UserSession[]
+  emailAccount       EmailAccount?
+  passwordRequests   PasswordResetRequest[] @relation("PasswordResetUser")
+  handledRequests    PasswordResetRequest[] @relation("PasswordResetHandler")
+}
+
+model UserSession {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String            @unique
+  ipAddress   String?
+  userAgent   String?
+  isActive    Boolean           @default(true)
+  expiresAt   DateTime
+  endedAt     DateTime?
+  endReason   SessionEndReason?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId, isActive])
+}
+
+model PasswordResetRequest {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation("PasswordResetUser", fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  status      PasswordResetStatus @default(PENDING)
+  handledById String?
+  handledBy   User?               @relation("PasswordResetHandler", fields: [handledById], references: [id])
+  note        String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model Client {
+  id            String     @id @default(cuid())
+  organization  String
+  category      String?
+  city          String?
+  state         String?
+  source        String?
+  website       String?
+  notes         String?
+  createdById   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  contacts      Contact[]
+  leads         Lead[]
+  deals         Deal[]
+  activities    Activity[]
+  callLogs      CallLog[]
+}
+
+model Contact {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name         String
+  designation  String?
+  phone        String?
+  whatsapp     String?
+  email        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([phone])
+  @@index([email])
+}
+
+model Lead {
+  id              String       @id @default(cuid())
+  title           String
+  clientId        String?
+  client          Client?      @relation(fields: [clientId], references: [id])
+  organization    String
+  contactName     String?
+  phone           String?
+  whatsapp        String?
+  email           String?
+  city            String?
+  state           String?
+  requirement     String?
+  source          String?
+  priority        Priority     @default(MEDIUM)
+  status          LeadStatus   @default(NEW_LEAD)
+  expectedValue   Decimal?     @db.Decimal(12, 2)
+  createdById     String
+  createdBy       User         @relation("CreatedLeads", fields: [createdById], references: [id])
+  assignedToId    String?
+  assignedTo      User?        @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  nextFollowupAt  DateTime?
+  duplicateOfId   String?
+  duplicateReason String?
+  sourceImportId  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  deals           Deal[]
+  followups       Followup[]
+  tasks           Task[]
+  activities      Activity[]
+  callLogs        CallLog[]
+  emailMessages   EmailMessage[]
+  whatsappLogs    WhatsappLog[]
+  files           FileAsset[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([sourceImportId])
+}
+
+model Deal {
+  id              String      @id @default(cuid())
+  leadId          String?
+  lead            Lead?       @relation(fields: [leadId], references: [id])
+  clientId        String?
+  client          Client?     @relation(fields: [clientId], references: [id])
+  title           String
+  stage           LeadStatus  @default(NEW_LEAD)
+  expectedValue   Decimal?    @db.Decimal(12, 2)
+  probability     Int?        @default(0)
+  assignedToId    String?
+  assignedTo      User?       @relation("AssignedDeals", fields: [assignedToId], references: [id])
+  nextFollowupAt  DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  followups       Followup[]
+  tasks           Task[]
+  activities      Activity[]
+  callLogs        CallLog[]
+}
+
+model Followup {
+  id           String          @id @default(cuid())
+  leadId       String?
+  lead         Lead?           @relation(fields: [leadId], references: [id])
+  dealId       String?
+  deal         Deal?           @relation(fields: [dealId], references: [id])
+  assignedToId String
+  assignedTo   User            @relation(fields: [assignedToId], references: [id])
+  title        String
+  notes        String?
+  dueAt        DateTime
+  status       FollowupStatus  @default(PENDING)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([assignedToId, dueAt])
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus @default(OPEN)
+  priority     Priority   @default(MEDIUM)
+  assignedToId String
+  assignedTo   User       @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User       @relation("CreatedTasks", fields: [createdById], references: [id])
+  leadId       String?
+  lead         Lead?      @relation(fields: [leadId], references: [id])
+  dealId       String?
+  deal         Deal?      @relation(fields: [dealId], references: [id])
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([assignedToId, status, dueAt])
+}
+
+model Activity {
+  id        String            @id @default(cuid())
+  type      CommunicationType
+  summary   String
+  details   String?
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  leadId    String?
+  lead      Lead?             @relation(fields: [leadId], references: [id])
+  clientId  String?
+  client    Client?           @relation(fields: [clientId], references: [id])
+  dealId    String?
+  deal      Deal?             @relation(fields: [dealId], references: [id])
+  createdAt DateTime          @default(now())
+}
+
+model CallLog {
+  id              String    @id @default(cuid())
+  leadId          String?
+  lead            Lead?     @relation(fields: [leadId], references: [id])
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id])
+  dealId          String?
+  deal            Deal?     @relation(fields: [dealId], references: [id])
+  employeeId      String
+  employee        User      @relation(fields: [employeeId], references: [id])
+  createdById     String?
+  createdBy       User?     @relation("CreatedCallLogs", fields: [createdById], references: [id])
+  clientName      String?
+  phone           String
+  durationSeconds Int?
+  status          String
+  summary         String?
+  objectionReason String?
+  budgetDiscussed Decimal?  @db.Decimal(12, 2)
+  productInterest String?
+  nextFollowupAt  DateTime?
+  recordingFileId String?
+  recordingFile   FileAsset? @relation("CallRecording", fields: [recordingFileId], references: [id])
+  createdAt       DateTime   @default(now())
+
+  @@index([leadId])
+  @@index([clientId])
+  @@index([dealId])
+  @@index([createdById])
+}
+
+model FileAsset {
+  id           String       @id @default(cuid())
+  category     FileCategory
+  originalName String
+  mimeType     String?
+  sizeBytes    Int?
+  s3Key        String
+  uploadedById String?
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id])
+  leadId       String?
+  lead         Lead?        @relation(fields: [leadId], references: [id])
+  createdAt    DateTime     @default(now())
+
+  callRecordingFor CallLog[] @relation("CallRecording")
+  emailAttachments EmailAttachment[]
+}
+
+model EmailAccount {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailAddress   String   @unique
+  smtpHost       String
+  smtpPort       Int
+  imapHost       String
+  imapPort       Int
+  encryptedPass  String
+  smtpEnabled    Boolean  @default(true)
+  imapEnabled    Boolean  @default(true)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model EmailMessage {
+  id            String   @id @default(cuid())
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id])
+  senderUserId  String?
+  senderUser    User?    @relation("SentEmails", fields: [senderUserId], references: [id])
+  fromEmail     String
+  toEmail       String
+  cc            String?
+  bcc           String?
+  subject       String
+  bodyHtml      String?
+  bodyText      String?
+  direction     String   // OUTBOUND or INBOUND
+  providerMsgId String?
+  threadKey     String?
+  sentAt        DateTime?
+  receivedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  attachments   EmailAttachment[]
+}
+
+model EmailAttachment {
+  id          String       @id @default(cuid())
+  emailId     String
+  email       EmailMessage @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  fileId      String
+  file        FileAsset    @relation(fields: [fileId], references: [id])
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  subject     String
+  bodyHtml    String
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WhatsappTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  message     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WhatsappLog {
+  id          String   @id @default(cuid())
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  employeeId  String
+  employee    User     @relation(fields: [employeeId], references: [id])
+  phone       String
+  message     String
+  waUrl       String
+  createdAt   DateTime @default(now())
+}
+
+model ChatConversation {
+  id           String        @id @default(cuid())
+  title        String?
+  isGroup      Boolean       @default(false)
+  linkedLeadId String?
+  linkedDealId String?
+  createdById  String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  members      ChatMember[]
+  messages     ChatMessage[]
+}
+
+model ChatMember {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User             @relation(fields: [senderId], references: [id])
+  body           String
+  createdAt      DateTime         @default(now())
+}
+
+model ExcelImport {
+  id             String    @id @default(cuid())
+  fileName       String
+  uploadedById   String
+  uploadedBy     User      @relation(fields: [uploadedById], references: [id])
+  totalRows      Int       @default(0)
+  importedRows   Int       @default(0)
+  duplicateRows  Int       @default(0)
+  failedRows     Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  rows           ExcelImportRow[]
+}
+
+model ExcelImportRow {
+  id              String          @id @default(cuid())
+  importId        String
+  import          ExcelImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
+  rowNumber       Int
+  rawJson         Json
+  status          ImportRowStatus
+  error           String?
+  duplicateLeadId String?
+  importedLeadId  String?
+}
+
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

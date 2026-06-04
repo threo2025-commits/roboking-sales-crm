@@ -1,0 +1,49 @@
+node_modules
+.next
+dist
+.env
+.env.local
+.DS_Store
+coverage
+uploads-temp
+*.log
+npm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+build/
+.next/
+.next-local/
+**/dist/
+**/.next/
+**/.next-local/
+
+# env files - keep locally, don't commit
+.env
+.env.*
+**/.env
+**/.env.*
+
+# keep example env files
+!.env.example
+!.env.production.example
+!**/.env.example
+!**/.env.production.example
+
+# local uploads / runtime files
+uploads-temp/
+backend/uploads-temp/
+*.log
+*.tmp
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
