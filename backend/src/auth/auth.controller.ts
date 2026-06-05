@@ -12,7 +12,9 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const result = await this.auth.login(dto, { ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    const forwarded = req.headers['x-forwarded-for'];
+    const ipAddress = (Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim()) || req.ip;
+    const result = await this.auth.login(dto, { ipAddress, userAgent: req.headers['user-agent'] });
     res.cookie('access_token', result.accessToken, {
       httpOnly: true,
       sameSite: 'lax',

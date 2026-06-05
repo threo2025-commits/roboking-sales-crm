@@ -65,7 +65,17 @@ export class AuthService {
 
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     await this.prisma.auditLog.create({
-      data: { actorId: user.id, action: 'LOGIN', entity: 'UserSession', entityId: session.id, metadata: { loginId: user.loginId } }
+      data: {
+        actorId: user.id,
+        actorRole: user.role,
+        action: 'LOGIN',
+        entity: 'UserSession',
+        entityId: session.id,
+        entityName: user.loginId,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent,
+        metadata: { loginId: user.loginId }
+      }
     });
 
     return {

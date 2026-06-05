@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   const config = app.get(ConfigService);
   const isProduction = config.get<string>('NODE_ENV') === 'production';
   const frontendUrl = config.get<string>('FRONTEND_URL') || (isProduction ? 'https://mint.roboking.in' : 'http://localhost:3001');

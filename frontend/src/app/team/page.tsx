@@ -10,7 +10,7 @@ type UserRow = { id: string; name: string; loginId: string; email?: string; emai
 export default function TeamPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [resetRequests, setResetRequests] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE' });
+  const [form, setForm] = useState({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE', managerId: '' });
   const [msg, setMsg] = useState('');
   const [emailSetup, setEmailSetup] = useState({ userId: '', emailAddress: '', password: '', smtpHost: 'smtp.hostinger.com', smtpPort: 465, imapHost: 'imap.hostinger.com', imapPort: 993 });
 
@@ -24,7 +24,7 @@ export default function TeamPage() {
 
   async function createUser(e: FormEvent) {
     e.preventDefault(); setMsg('');
-    try { await api('/users', { method: 'POST', body: JSON.stringify(form) }); setMsg('User created. They must change password after login.'); setForm({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE' }); load(); }
+    try { await api('/users', { method: 'POST', body: JSON.stringify({ ...form, emailAddress: form.email, managerId: form.managerId || undefined }) }); setMsg('User created with their sales email. They must change password after login.'); setForm({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE', managerId: '' }); load(); }
     catch (e: any) { setMsg(e.message); }
   }
 
@@ -64,10 +64,14 @@ export default function TeamPage() {
           <h2 className="text-xl font-bold">Create User</h2>
           <input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" />
           <input placeholder="Login ID" value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
-          <input placeholder="RoboKing sub-email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input required type="email" placeholder="Sales email (name@roboking.in)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
           <input placeholder="Temporary password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
           <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
             <option value="OWNER">Owner</option><option value="MANAGER">Manager</option><option value="PA_ADMIN_ASSISTANT">PA / Admin Assistant</option><option value="EMPLOYEE">Employee</option>
+          </select>
+          <select value={form.managerId} onChange={(e) => setForm({ ...form, managerId: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
+            <option value="">Manager (optional)</option>
+            {users.filter((user) => ['OWNER', 'MANAGER'].includes(user.role)).map((user) => <option key={user.id} value={user.id}>{user.name} - {user.role}</option>)}
           </select>
           <button className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950">Create Login ID</button>
         </form>

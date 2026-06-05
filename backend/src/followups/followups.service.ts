@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import type { RequestMeta } from '../common/decorators/request-meta.decorator';
 import { CreateFollowupDto } from './dto/create-followup.dto';
 
 type AuthUser = { sub: string; role: Role };
@@ -38,21 +39,29 @@ export class FollowupsService {
     return this.prisma.followup.findMany({ where: { status: 'PENDING', ...(unrestricted ? {} : { assignedToId: user.sub }) }, include: { lead: true, assignedTo: { select: { id: true, name: true, loginId: true } } }, orderBy: { dueAt: 'asc' }, take: 100 });
   }
 
-  async updateStatus(id: string, status: 'PENDING' | 'COMPLETED' | 'MISSED' | 'CANCELLED', user: AuthUser) {
+  async updateStatus(id: string, status: 'PENDING' | 'COMPLETED' | 'MISSED' | 'CANCELLED', user: AuthUser, meta?: RequestMeta) {
     const unrestricted = ['OWNER', 'MANAGER', 'PA_ADMIN_ASSISTANT'].includes(user.role);
     const followup = await this.prisma.followup.findFirst({ where: { id, ...(unrestricted ? {} : { assignedToId: user.sub }) } });
     if (!followup) throw new NotFoundException('Follow-up not found or not allowed');
     const updated = await this.prisma.followup.update({ where: { id }, data: { status } });
-    await this.prisma.auditLog.create({ data: { actorId: user.sub, action: 'UPDATE_FOLLOWUP_STATUS', entity: 'Followup', entityId: id, metadata: { status } } });
+    await this.prisma.auditLog.create({ data: {
+      actorId: user.sub, actorRole: user.role, action: 'UPDATE_FOLLOWUP_STATUS', entity: 'Followup', entityId: id,
+      entityName: followup.title, ipAddress: meta?.ipAddress, userAgent: meta?.userAgent,
+      beforeState: { status: followup.status }, afterState: { status }
+    } });
     return updated;
   }
 
-  async reschedule(id: string, dueAt: string, user: AuthUser) {
+  async reschedule(id: string, dueAt: string, user: AuthUser, meta?: RequestMeta) {
     const unrestricted = ['OWNER', 'MANAGER', 'PA_ADMIN_ASSISTANT'].includes(user.role);
     const followup = await this.prisma.followup.findFirst({ where: { id, ...(unrestricted ? {} : { assignedToId: user.sub }) } });
     if (!followup) throw new NotFoundException('Follow-up not found or not allowed');
     const updated = await this.prisma.followup.update({ where: { id }, data: { dueAt: new Date(dueAt), status: 'PENDING' } });
-    await this.prisma.auditLog.create({ data: { actorId: user.sub, action: 'RESCHEDULE_FOLLOWUP', entity: 'Followup', entityId: id, metadata: { dueAt } } });
+    await this.prisma.auditLog.create({ data: {
+      actorId: user.sub, actorRole: user.role, action: 'RESCHEDULE_FOLLOWUP', entity: 'Followup', entityId: id,
+      entityName: followup.title, ipAddress: meta?.ipAddress, userAgent: meta?.userAgent,
+      beforeState: { dueAt: followup.dueAt, status: followup.status }, afterState: { dueAt, status: 'PENDING' }
+    } });
     return updated;
   }
 }

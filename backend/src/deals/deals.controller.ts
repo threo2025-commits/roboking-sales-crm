@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { CurrentRequestMeta, RequestMeta } from '../common/decorators/request-meta.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { DealsService } from './deals.service';
@@ -17,5 +18,7 @@ export class DealsController {
   create(@Body() dto: CreateDealDto, @CurrentUser() user: any) { return this.deals.create(dto, user); }
 
   @Post('stage')
-  updateStage(@Body() dto: UpdateDealStageDto, @CurrentUser() user: any) { return this.deals.updateStage(dto, user); }
+  updateStage(@Body() dto: UpdateDealStageDto, @CurrentUser() user: any, @CurrentRequestMeta() meta: RequestMeta) {
+    return this.deals.updateStage(dto, user, meta);
+  }
 }

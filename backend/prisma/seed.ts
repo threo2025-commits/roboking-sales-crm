@@ -23,7 +23,7 @@ async function main() {
   const pa = await upsertUser('Admin PA', 'pa', 'pa@roboking.in', 'PA_ADMIN_ASSISTANT', owner.id);
   const employee = await upsertUser('Sales Employee', 'employee', 'employee@roboking.in', 'EMPLOYEE', manager.id);
 
-  await prisma.setting.upsert({ where: { key: 'ADMIN_BCC_EMAIL' }, update: {}, create: { key: 'ADMIN_BCC_EMAIL', value: 'update_later@roboking.in' } });
+  await prisma.setting.upsert({ where: { key: 'ADMIN_BCC_EMAIL' }, update: { value: 'monit.roboking@gmail.com' }, create: { key: 'ADMIN_BCC_EMAIL', value: 'monit.roboking@gmail.com' } });
   await prisma.setting.upsert({ where: { key: 'ALLOW_EMPLOYEE_DIRECT_CHAT' }, update: {}, create: { key: 'ALLOW_EMPLOYEE_DIRECT_CHAT', value: 'false' } });
 
   const lead = await prisma.lead.upsert({

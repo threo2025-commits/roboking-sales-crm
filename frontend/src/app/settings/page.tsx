@@ -4,17 +4,42 @@ import { AppShell } from '@/components/AppShell';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
 
-export default function SettingsPage(){
-  const [settings,setSettings]=useState<Record<string,string>>({});
-  const [adminBcc,setAdminBcc]=useState(''); const [msg,setMsg]=useState('');
-  const [allowEmployeeDirectChat,setAllowEmployeeDirectChat]=useState(false);
-  async function load(){ try{ const s=await api<Record<string,string>>('/settings'); setSettings(s); setAdminBcc(s.ADMIN_BCC_EMAIL||''); setAllowEmployeeDirectChat(s.ALLOW_EMPLOYEE_DIRECT_CHAT === 'true'); }catch(e:any){ setMsg(e.message); } }
-  useEffect(()=>{load();},[]);
-  async function save(){ await api('/settings',{method:'POST',body:JSON.stringify({key:'ADMIN_BCC_EMAIL',value:adminBcc})}); setMsg('Settings saved.'); load(); }
-  async function saveChatSetting(){ await api('/settings',{method:'POST',body:JSON.stringify({key:'ALLOW_EMPLOYEE_DIRECT_CHAT',value:String(allowEmployeeDirectChat)})}); setMsg('Chat setting saved.'); load(); }
-  return <AppShell><PageHeader title="Settings" subtitle="Owner/Manager settings for CRM email, BCC and core defaults." />
-    <section className="card max-w-3xl p-4 sm:p-6"><h2 className="text-xl font-bold">Email BCC Setting</h2><p className="mt-1 text-sm text-slate-500">Every employee email will auto-BCC this admin/founder address.</p><input value={adminBcc} onChange={e=>setAdminBcc(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" placeholder="founder@roboking.in"/><button onClick={save} className="mt-3 w-full rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950 sm:w-auto">Save</button>{msg&&<div className="mt-4 rounded-xl bg-slate-100 p-3 text-sm">{msg}</div>}</section>
-    <section className="card mt-6 max-w-3xl p-4 sm:p-6"><h2 className="text-xl font-bold">Employee Direct Chat</h2><p className="mt-1 text-sm text-slate-500">When disabled, employees cannot start direct employee-to-employee chats. Owner/Manager-created groups still work.</p><label className="mt-4 flex items-start gap-3 text-sm font-semibold"><input type="checkbox" checked={allowEmployeeDirectChat} onChange={e=>setAllowEmployeeDirectChat(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0"/> Allow employee direct chat</label><button onClick={saveChatSetting} className="mt-3 w-full rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950 sm:w-auto">Save Chat Setting</button></section>
-    <section className="card mt-6 min-w-0 p-4 sm:p-6"><h2 className="mb-3 text-xl font-bold">All Settings</h2><pre className="max-w-full overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-white">{JSON.stringify(settings,null,2)}</pre></section>
+export default function SettingsPage() {
+  const [allowEmployeeDirectChat, setAllowEmployeeDirectChat] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  async function load() {
+    try {
+      const settings = await api<Record<string, string>>('/settings');
+      setAllowEmployeeDirectChat(settings.ALLOW_EMPLOYEE_DIRECT_CHAT === 'true');
+    } catch (e: any) {
+      setMsg(e.message);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function saveChatSetting() {
+    try {
+      await api('/settings', { method: 'POST', body: JSON.stringify({ key: 'ALLOW_EMPLOYEE_DIRECT_CHAT', value: String(allowEmployeeDirectChat) }) });
+      setMsg('Chat permission saved.');
+      load();
+    } catch (e: any) {
+      setMsg(e.message);
+    }
+  }
+
+  return <AppShell>
+    <PageHeader title="Settings" subtitle="Restricted Owner/Manager controls for CRM permissions." />
+    <section className="card max-w-3xl p-4 sm:p-6">
+      <h2 className="text-xl font-bold">Employee Direct Chat</h2>
+      <p className="mt-1 text-sm text-slate-500">When disabled, employees cannot start direct employee-to-employee chats. Owner/Manager-created groups remain available.</p>
+      <label className="mt-5 flex items-start gap-3 rounded-xl border p-4 text-sm font-semibold">
+        <input type="checkbox" checked={allowEmployeeDirectChat} onChange={(e) => setAllowEmployeeDirectChat(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0" />
+        Allow employees to start direct chats with other employees
+      </label>
+      <button onClick={saveChatSetting} className="mt-4 w-full rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950 sm:w-auto">Save Permission</button>
+      {msg && <div className="mt-4 rounded-xl bg-slate-100 p-3 text-sm">{msg}</div>}
+    </section>
   </AppShell>;
 }

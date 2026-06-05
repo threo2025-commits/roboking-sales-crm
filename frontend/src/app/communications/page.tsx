@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
@@ -29,6 +30,7 @@ export default function CommunicationsPage() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [status, setStatus] = useState('');
   const [employeeName, setEmployeeName] = useState('RoboKing Team');
+  const [role, setRole] = useState('');
 
   async function load() {
     try {
@@ -37,7 +39,11 @@ export default function CommunicationsPage() {
       setDeals(await api<any[]>('/deals'));
       setEmailTemplates(await api<any[]>('/email/templates'));
       setWhatsappTemplates(await api<any[]>('/whatsapp/templates'));
-      try { setEmployeeName(JSON.parse(localStorage.getItem('rk_crm_user') || '{}').name || 'RoboKing Team'); } catch {}
+      try {
+        const stored = JSON.parse(localStorage.getItem('rk_crm_user') || '{}');
+        setEmployeeName(stored.name || 'RoboKing Team');
+        setRole(stored.role || '');
+      } catch {}
     } catch (e: any) { setStatus(e.message); }
   }
 
@@ -110,7 +116,7 @@ export default function CommunicationsPage() {
       fd.append('bodyHtml', email.bodyHtml.replaceAll('\n', '<br/>'));
       attachments.forEach((file) => fd.append('attachments', file));
       await api('/email/send', { method: 'POST', body: fd });
-      setStatus('Email sent from employee Hostinger email and auto-BCC applied.');
+      setStatus('Email sent from the configured employee mailbox.');
     } catch (e: any) { setStatus(e.message); }
   }
 
@@ -130,6 +136,10 @@ export default function CommunicationsPage() {
   return (
     <AppShell>
       <PageHeader title="Communications" subtitle="Call, WhatsApp, email, and manual client conversation entry from one screen." />
+      <div className="mb-5 flex flex-wrap gap-2">
+        <Link href="/inbox" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Email Inbox</Link>
+        {['OWNER', 'MANAGER'].includes(role) && <Link href="/templates" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Message Templates</Link>}
+      </div>
       <section className="card mb-5 p-4 sm:mb-6 sm:p-6">
         <h2 className="text-xl font-bold">Select Communication Context</h2>
         <p className="mt-1 text-sm text-slate-500">Link calls to a lead, client, or deal. Selecting an item auto-fills contact details where available.</p>
@@ -161,7 +171,7 @@ export default function CommunicationsPage() {
 
         <section className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Email Compose</h2>
-          <p className="mt-1 text-sm text-slate-500">Sends from logged-in employee Hostinger email and auto-BCCs admin.</p>
+          <p className="mt-1 text-sm text-slate-500">Sends from the logged-in employee&apos;s configured Hostinger mailbox.</p>
           <select onChange={(e) => applyEmailTemplate(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm"><option value="">Choose email template</option>{emailTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
           <input value={email.toEmail} onChange={(e) => setEmail({ ...email, toEmail: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="To" />
           <input value={email.subject} onChange={(e) => setEmail({ ...email, subject: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Subject" />

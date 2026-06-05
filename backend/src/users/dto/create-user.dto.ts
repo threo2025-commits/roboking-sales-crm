@@ -8,9 +8,8 @@ export class CreateUserDto {
   @IsString()
   loginId!: string;
 
-  @IsOptional()
   @IsEmail()
-  email?: string;
+  email!: string;
 
   @IsString()
   @MinLength(8)
@@ -28,6 +27,6 @@ export class CreateUserDto {
   managerId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsEmail()
   emailAddress?: string;
 }

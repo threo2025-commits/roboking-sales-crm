@@ -19,6 +19,11 @@ type Lead = {
   duplicateOfId?: string;
   duplicateReason?: string;
   deletedAt?: string;
+  createdBy?: { name: string };
+  assignedTo?: { name: string };
+  callLogs?: { createdAt: string }[];
+  emailMessages?: { createdAt: string }[];
+  whatsappLogs?: { createdAt: string }[];
 };
 
 const empty = { organization: '', contactName: '', phone: '', whatsapp: '', email: '', city: '', state: '', requirement: '', source: '', priority: 'MEDIUM', nextFollowupAt: '' };
@@ -110,13 +115,15 @@ export default function LeadsPage() {
             <button onClick={load} className="rounded-xl border px-4 py-2 text-sm font-bold">Refresh</button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="text-xs uppercase text-slate-400">
                 <tr>
                   <th className="py-3">Organization</th>
                   <th>Contact</th>
                   <th>Phone</th>
                   <th>Status</th>
+                  <th>Created / Handler</th>
+                  <th>Last Contact</th>
                   <th>Next Follow-up</th>
                   <th>Actions</th>
                 </tr>
@@ -132,6 +139,15 @@ export default function LeadsPage() {
                     <td>{lead.contactName || '-'}</td>
                     <td>{lead.phone || '-'}</td>
                     <td>{lead.deletedAt ? <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">DELETED</span> : <StatusBadge status={lead.status} />}</td>
+                    <td><div>{lead.createdBy?.name || '-'}</div><div className="text-xs text-slate-500">Handled by {lead.assignedTo?.name || 'Unassigned'}</div></td>
+                    <td>{(() => {
+                      const items = [
+                        ...(lead.callLogs || []).map((item) => ({ type: 'Call', at: item.createdAt })),
+                        ...(lead.emailMessages || []).map((item) => ({ type: 'Email', at: item.createdAt })),
+                        ...(lead.whatsappLogs || []).map((item) => ({ type: 'WhatsApp', at: item.createdAt }))
+                      ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+                      return items[0] ? <><div>{items[0].type}</div><div className="text-xs text-slate-500">{new Date(items[0].at).toLocaleString()}</div></> : '-';
+                    })()}</td>
                     <td>{lead.nextFollowupAt ? new Date(lead.nextFollowupAt).toLocaleString() : '-'}</td>
                     <td className="space-x-3 font-semibold">
                       {!lead.deletedAt && <a href={lead.phone ? `tel:${lead.phone}` : '#'}>Call</a>}
@@ -147,7 +163,7 @@ export default function LeadsPage() {
                 ))}
                 {!leads.length && (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500">
+                    <td colSpan={8} className="py-8 text-center text-slate-500">
                       No leads yet.
                     </td>
                   </tr>

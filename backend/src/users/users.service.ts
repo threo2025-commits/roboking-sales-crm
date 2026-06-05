@@ -58,11 +58,11 @@ export class UsersService {
         passwordHash,
         mustChangePassword: true
       },
-      select: { id: true, name: true, loginId: true, email: true, role: true, status: true, mustChangePassword: true }
+      select: { id: true, name: true, loginId: true, email: true, emailAddress: true, managerId: true, role: true, status: true, mustChangePassword: true }
     });
 
     await this.prisma.auditLog.create({
-      data: { actorId, action: 'CREATE_USER', entity: 'User', entityId: user.id, metadata: { loginId: user.loginId, role: user.role } }
+      data: { actorId, action: 'CREATE_USER', entity: 'User', entityId: user.id, entityName: user.name, metadata: { loginId: user.loginId, role: user.role, salesEmailConfigured: true } }
     });
     return user;
   }

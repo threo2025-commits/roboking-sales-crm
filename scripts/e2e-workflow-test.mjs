@@ -169,6 +169,16 @@ async function main() {
   const empAList = await request('/leads', { token: empA.accessToken });
   record('Employee cannot see another employee lead', !empAList.data.some((l) => l.id === leadB.data.id));
 
+  await request(`/leads/${leadB.data.id}/stage`, {
+    token: empB.accessToken,
+    method: 'POST',
+    body: { status: 'STARTED', note: 'E2E lead journey started' }
+  });
+  const stagedLead = await request(`/leads/${leadB.data.id}`, { token: owner.accessToken });
+  record('Lead journey stage and detailed audit are recorded',
+    stagedLead.data.status === 'STARTED' &&
+    stagedLead.data.auditLogs.some((log) => log.action === 'UPDATE_LEAD_STAGE' && log.beforeState?.status === 'NEW_LEAD' && log.afterState?.status === 'STARTED'));
+
   const empDeleteAttempt = await request(`/leads/${leadA.data.id}`, { token: empA.accessToken, method: 'DELETE', expected: [403] });
   await request(`/leads/${leadA.data.id}`, { token: owner.accessToken, method: 'DELETE' });
   const deletedOwnerView = await request('/leads', { token: owner.accessToken });
@@ -322,14 +332,14 @@ async function main() {
   const emailConfigOk = /Employee email is not configured|SMTP\/IMAP account is not connected/.test(noEmailSend.text) && noCredentialSync.data.skipped === true;
   record('Email missing config and IMAP missing credentials are handled', emailConfigOk, emailConfigOk ? '' : `send=${noEmailSend.text}; sync=${JSON.stringify(noCredentialSync.data)}`);
 
-  const bccSetting = await request('/settings', { token: owner.accessToken, method: 'POST', body: { key: 'ADMIN_BCC_EMAIL', value: `admin-${suffix}@roboking.in` } });
+  const hiddenBccSetting = await request('/settings', { token: owner.accessToken, method: 'POST', body: { key: 'ADMIN_BCC_EMAIL', value: `admin-${suffix}@roboking.in` }, expected: [400] });
   await request('/users/connect-email-account', {
     token: owner.accessToken,
     method: 'POST',
     body: { userId: employeeB.data.id, emailAddress: `sender-${suffix}@roboking.in`, password: 'smtp-password', smtpHost: 'smtp.hostinger.com', smtpPort: 465, imapHost: 'imap.hostinger.com', imapPort: 993 }
   });
   const userAfterEmail = await prisma.user.findUnique({ where: { id: employeeB.data.id }, include: { emailAccount: true } });
-  record('Owner/Manager can configure email account and BCC setting', bccSetting.data.value.includes('roboking.in') && !!userAfterEmail?.emailAccount);
+  record('Owner/Manager can configure email account while hidden BCC is backend-managed', hiddenBccSetting.status === 400 && !!userAfterEmail?.emailAccount);
 
   await request('/settings', { token: owner.accessToken, method: 'POST', body: { key: 'ALLOW_EMPLOYEE_DIRECT_CHAT', value: 'false' } });
   const directBlocked = await request('/chat/direct', { token: empA.accessToken, method: 'POST', body: { memberId: employeeB.data.id }, expected: [403] });

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import type { RequestMeta } from '../common/decorators/request-meta.decorator';
 import { UpdateDealStageDto } from './dto/update-deal-stage.dto';
 import { CreateDealDto } from './dto/create-deal.dto';
 
@@ -34,12 +35,19 @@ export class DealsService {
     return deal;
   }
 
-  async updateStage(dto: UpdateDealStageDto, user: AuthUser) {
+  async updateStage(dto: UpdateDealStageDto, user: AuthUser, meta?: RequestMeta) {
     const existing = await this.prisma.deal.findUnique({ where: { id: dto.dealId } });
     if (!existing) throw new NotFoundException('Deal not found');
     if (!this.unrestricted(user) && existing.assignedToId !== user.sub) throw new ForbiddenException('Permission denied');
     const deal = await this.prisma.deal.update({ where: { id: dto.dealId }, data: { stage: dto.stage } });
     await this.prisma.activity.create({ data: { type: 'NOTE', summary: `Deal moved to ${dto.stage}`, details: dto.note, userId: user.sub, dealId: deal.id } });
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: user.sub, actorRole: user.role, action: 'UPDATE_DEAL_STAGE', entity: 'Deal', entityId: deal.id,
+        entityName: deal.title, ipAddress: meta?.ipAddress, userAgent: meta?.userAgent,
+        beforeState: { stage: existing.stage }, afterState: { stage: deal.stage }, notes: dto.note
+      }
+    });
     return deal;
   }
 }

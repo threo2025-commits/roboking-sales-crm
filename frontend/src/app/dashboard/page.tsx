@@ -64,6 +64,7 @@ export default function DashboardPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [followups, setFollowups] = useState<any[]>([]);
   const [user, setUser] = useState<StoredUser>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [msg, setMsg] = useState('');
 
   async function load() {
@@ -72,6 +73,7 @@ export default function DashboardPage() {
       setSummary(await api<Summary>('/dashboard/summary'));
       setLeads(await api<any[]>('/leads'));
       setFollowups(await api<any[]>('/followups/daily'));
+      setAnalytics(await api<any>('/reports/overview'));
       try {
         setUser(JSON.parse(localStorage.getItem('rk_crm_user') || 'null'));
       } catch {}
@@ -183,6 +185,18 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {canManageSettings && <section className="card mt-6 p-4 sm:p-6">
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+          <div><h2 className="text-xl font-bold text-slate-950">Sales Analytics</h2><p className="mt-1 text-sm text-slate-500">Conversion, source quality, communication volume, and recent activity.</p></div>
+          <Link href="/reports" className="text-sm font-bold text-brandGoldDark">Open full reports</Link>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Lead Conversion</div><div className="mt-2 text-3xl font-bold">{analytics?.conversionRate ?? 0}%</div><div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, analytics?.conversionRate || 0)}%` }} /></div></div>
+          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Communication Activity</div><div className="mt-4 grid grid-cols-3 gap-2 text-center"><div><b className="text-xl">{analytics?.communicationSummary?.calls ?? 0}</b><p className="text-xs text-slate-500">Calls</p></div><div><b className="text-xl">{analytics?.communicationSummary?.emails ?? 0}</b><p className="text-xs text-slate-500">Emails</p></div><div><b className="text-xl">{analytics?.communicationSummary?.whatsapp ?? 0}</b><p className="text-xs text-slate-500">WhatsApp</p></div></div></div>
+          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Top Lead Sources</div><div className="mt-3 space-y-2">{analytics?.leadSource?.slice(0, 3).map((source: any) => <div key={source.source} className="flex items-center justify-between gap-3 text-sm"><span className="truncate">{source.source}</span><b>{source.conversionRate}%</b></div>)}{!analytics?.leadSource?.length && <p className="text-sm text-slate-500">No source data yet.</p>}</div></div>
+        </div>
+      </section>}
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
         <section className="card p-4 sm:p-6 xl:col-span-2">
