@@ -27,9 +27,9 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
       <PageHeader title={client?.organization || 'Client Details'} subtitle="Client contacts, linked leads, deals, activity and call recordings." action={<Link href="/clients" className="rounded-xl border bg-white px-4 py-2 text-sm font-bold">Back to clients</Link>} />
       {msg && <div className="mb-4 rounded-xl bg-slate-100 p-3 text-sm">{msg}</div>}
       {!client ? <section className="card p-6 text-sm text-slate-500">Loading client...</section> : <>
-        <section className="card p-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="text-2xl font-bold">{client.organization}</h2>
-          <div className="mt-4 grid grid-cols-4 gap-4 text-sm">
+          <div className="mt-4 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div><b>Location</b><p>{[client.city, client.state].filter(Boolean).join(', ') || '-'}</p></div>
             <div><b>Category</b><p>{client.category || '-'}</p></div>
             <div><b>Source</b><p>{client.source || '-'}</p></div>
@@ -37,7 +37,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           </div>
         </section>
 
-        <div className="mt-6 grid grid-cols-2 gap-6">
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:mt-6 lg:grid-cols-2 lg:gap-6">
           <section className="card p-6">
             <h2 className="mb-4 text-xl font-bold">Call Logs & Recordings</h2>
             {client.callLogs?.map((c: any) => <div key={c.id} className="mb-3 rounded-xl border p-4 text-sm"><b>{c.status}</b><div className="text-slate-500">By {c.employee?.name || '-'} - Duration: {c.durationSeconds || '-'} sec</div><p className="mt-2">{c.summary || '-'}</p>{c.recordingFile && <button onClick={() => download(c.recordingFile.id)} className="mt-3 rounded-lg border px-3 py-2 text-xs font-bold">Download Recording</button>}</div>)}
@@ -51,7 +51,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           </section>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-6">
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:mt-6 lg:grid-cols-2 lg:gap-6">
           <section className="card p-6"><h2 className="mb-4 text-xl font-bold">Linked Leads</h2>{client.leads?.map((lead: any) => <div key={lead.id} className="mb-3 rounded-xl border p-4 text-sm"><b>{lead.organization}</b><div className="text-slate-500">{lead.status}</div></div>)}{!client.leads?.length && <p className="text-sm text-slate-500">No linked leads.</p>}</section>
           <section className="card p-6"><h2 className="mb-4 text-xl font-bold">Linked Deals</h2>{client.deals?.map((deal: any) => <div key={deal.id} className="mb-3 rounded-xl border p-4 text-sm"><b>{deal.title}</b><div className="text-slate-500">{deal.stage}</div></div>)}{!client.deals?.length && <p className="text-sm text-slate-500">No linked deals.</p>}</section>
         </div>

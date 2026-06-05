@@ -103,13 +103,13 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      <div className="mb-6 flex items-start justify-between gap-6">
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6">
         <div>
           <div className="text-sm font-bold uppercase tracking-wide text-brandGoldDark">RoboKing Sales Platform</div>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">{content.title}</h1>
+          <h1 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl">{content.title}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{content.subtitle}</p>
         </div>
-        <button onClick={load} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm">
+        <button onClick={load} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 shadow-sm sm:w-auto">
           Refresh
         </button>
       </div>
@@ -121,7 +121,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="mb-6 grid gap-3 md:grid-cols-4">
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {content.focus.map((item) => (
           <div key={item} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm">
             {item}
@@ -139,8 +139,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <section className="card p-6 xl:col-span-2">
-          <div className="mb-5 flex items-center justify-between gap-4">
+        <section className="card p-4 sm:p-6 xl:col-span-2">
+          <div className="mb-5 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center sm:gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Pipeline Snapshot</h2>
               <p className="mt-1 text-sm text-slate-500">Lead movement by current sales stage.</p>
@@ -162,8 +162,8 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="card p-6">
-          <div className="mb-4 flex items-center justify-between">
+        <section className="card p-4 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Today Follow-ups</h2>
               <p className="mt-1 text-sm text-slate-500">Calls, reminders, and next actions due today.</p>
@@ -185,8 +185,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <section className="card p-6 xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between gap-4">
+        <section className="card p-4 sm:p-6 xl:col-span-2">
+          <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center sm:gap-4">
             <div>
               <h2 className="text-xl font-bold text-slate-950">Recent Leads & Clients</h2>
               <p className="mt-1 text-sm text-slate-500">Latest visible sales records for your role.</p>
@@ -241,7 +241,7 @@ export default function DashboardPage() {
         </section>
 
         <section className="space-y-6">
-          <div className="card p-6">
+          <div className="card p-4 sm:p-6">
             <h2 className="mb-4 text-xl font-bold text-slate-950">Quick Actions</h2>
             <div className="space-y-3 text-sm">
               <Link className="block rounded-xl border border-slate-200 p-3 font-semibold hover:border-brandGold" href="/leads">
@@ -264,7 +264,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="card p-4 sm:p-6">
             <h2 className="mb-4 text-xl font-bold text-slate-950">Communication Readiness</h2>
             <div className="grid grid-cols-3 gap-3 text-center text-sm">
               <div className="rounded-xl bg-slate-50 p-3">
@@ -282,7 +282,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="card p-4 sm:p-6">
             <h2 className="mb-4 text-xl font-bold text-slate-950">Duplicate Control</h2>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               {summary?.duplicateContacts ? `${summary.duplicateContacts} duplicate contact warning(s) found.` : 'No duplicate warnings currently.'}

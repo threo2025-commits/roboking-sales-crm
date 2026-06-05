@@ -34,8 +34,8 @@ export default function TemplatesPage() {
     <AppShell>
       <PageHeader title="Company Templates" subtitle="Owner/Manager creates master email and WhatsApp templates. Employees can edit copies before sending but cannot modify these master templates." />
       {msg && <div className="mb-4 rounded-xl bg-slate-100 p-3 text-sm">{msg}</div>}
-      <div className="grid grid-cols-2 gap-6">
-        <section className="card p-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Create Email Template</h2>
           <form onSubmit={createEmail} className="mt-4 space-y-3">
             <input required value={emailForm.name} onChange={(e) => setEmailForm({ ...emailForm, name: e.target.value })} className="w-full rounded-xl border px-4 py-3 text-sm" placeholder="Template name" />
@@ -47,7 +47,7 @@ export default function TemplatesPage() {
           {emailTemplates.map((t) => <div key={t.id} className="mt-3 rounded-xl border p-3 text-sm"><b>{t.name}</b><div className="text-slate-500">{t.subject}</div></div>)}
         </section>
 
-        <section className="card p-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Create WhatsApp Template</h2>
           <form onSubmit={createWhatsapp} className="mt-4 space-y-3">
             <input required value={waForm.name} onChange={(e) => setWaForm({ ...waForm, name: e.target.value })} className="w-full rounded-xl border px-4 py-3 text-sm" placeholder="Template name" />

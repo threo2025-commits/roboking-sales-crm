@@ -28,8 +28,8 @@ export default function ProfilePage() {
 
   return <AppShell>
     <PageHeader title="Profile & Password" subtitle="Use this page when Manager/Owner gives you a temporary password. Changing password will log out current session." />
-    <div className="grid grid-cols-2 gap-6">
-      <section className="card p-6">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+      <section className="card p-4 sm:p-6">
         <h2 className="text-xl font-bold">My Account</h2>
         <div className="mt-4 space-y-3 text-sm">
           <div><b>Name:</b> {user?.name || '-'}</div>
@@ -39,7 +39,7 @@ export default function ProfilePage() {
           {user?.mustChangePassword && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 font-bold text-amber-800">Temporary password active. Please change your password.</div>}
         </div>
       </section>
-      <form onSubmit={changePassword} className="card p-6">
+      <form onSubmit={changePassword} className="card p-4 sm:p-6">
         <h2 className="text-xl font-bold">Change Password</h2>
         <input type="password" value={form.currentPassword} onChange={(e) => setForm({ ...form, currentPassword: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Current password" required />
         <input type="password" value={form.newPassword} onChange={(e) => setForm({ ...form, newPassword: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="New password, minimum 8 characters" required />

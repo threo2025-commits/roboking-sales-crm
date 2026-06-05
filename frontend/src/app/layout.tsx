@@ -1,10 +1,16 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import type { Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
   title: 'RoboKing Sales Platform CRM',
-  description: 'Private RoboKing sales CRM at mint.roboking.in'
+  description: 'RoboKing Sales Platform CRM at mint.roboking.in'
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

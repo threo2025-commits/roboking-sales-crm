@@ -49,12 +49,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-brandNavy px-6 py-8 text-slate-950">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="relative flex flex-col justify-between bg-slate-950 p-8 text-white sm:p-10">
+    <main className="min-h-screen bg-brandNavy px-3 py-3 text-slate-950 sm:px-6 sm:py-8">
+      <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative flex flex-col justify-between bg-slate-950 p-5 text-white sm:p-8 lg:p-10">
           <div>
             <div className="flex items-center gap-4">
-              <Image src="/logo/roboking-logo.png" alt="RoboKing" width={72} height={72} className="rounded-xl" priority />
+              <Image src="/logo/roboking-logo.png" alt="RoboKing" width={72} height={72} className="h-14 w-14 rounded-xl sm:h-[72px] sm:w-[72px]" priority />
               <div>
                 <div className="text-3xl font-bold">
                   Robo<span className="text-brandGold">King</span>
@@ -63,15 +63,15 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="mt-16 max-w-xl">
-              <h1 className="text-4xl font-bold leading-tight sm:text-5xl">RoboKing Sales Platform</h1>
+            <div className="mt-8 max-w-xl lg:mt-16">
+              <h1 className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">RoboKing Sales Platform</h1>
               <p className="mt-5 text-lg leading-8 text-slate-300">
                 Manage leads, follow-ups, client communication, and sales activity in one secure workspace.
               </p>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {['Lead tracking', 'Follow-up planning', 'Client communication', 'Sales reporting'].map((item) => (
               <div key={item} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
                 {item}
@@ -80,8 +80,8 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <section className="flex items-center justify-center bg-slate-50 p-6 sm:p-10">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <section className="flex items-center justify-center bg-slate-50 p-3 sm:p-6 lg:p-10">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
             <div>
               <h2 className="text-2xl font-bold text-slate-950">Sales team login</h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">Use your assigned RoboKing login ID and password.</p>

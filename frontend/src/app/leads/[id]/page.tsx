@@ -51,8 +51,8 @@ export default function LeadDetailPage() {
         <section className="card p-6 text-sm text-slate-500">Loading lead...</section>
       ) : (
         <>
-          <section className={`card p-6 ${lead.deletedAt ? 'border-red-200 bg-red-50' : ''}`}>
-            <div className="flex items-start justify-between gap-6">
+          <section className={`card p-4 sm:p-6 ${lead.deletedAt ? 'border-red-200 bg-red-50' : ''}`}>
+            <div className="flex flex-col items-start justify-between gap-5 lg:flex-row lg:gap-6">
               <div>
                 <div className="mb-3">
                   {lead.deletedAt ? <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">DELETED</span> : <StatusBadge status={lead.status} />}
@@ -63,14 +63,14 @@ export default function LeadDetailPage() {
                 {lead.duplicateReason && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">Duplicate contact found: {lead.duplicateReason}</div>}
               </div>
               {!lead.deletedAt && (
-                <div className="space-x-2">
+                <div className="flex flex-wrap gap-2">
                   <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Call</a>
                   <Link href="/communications" className="rounded-xl bg-brandGold px-4 py-2 text-sm font-bold text-slate-950">Communicate</Link>
                   <button onClick={convert} className="rounded-xl border px-4 py-2 text-sm font-bold">Convert to Client</button>
                 </div>
               )}
             </div>
-            <div className="mt-6 grid grid-cols-4 gap-4 text-sm">
+            <div className="mt-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div><b>Contact</b><p>{lead.contactName || '-'}</p></div>
               <div><b>Phone</b><p>{lead.phone || '-'}</p></div>
               <div><b>Email</b><p>{lead.email || '-'}</p></div>
@@ -78,7 +78,7 @@ export default function LeadDetailPage() {
             </div>
           </section>
 
-          <div className="mt-6 grid grid-cols-2 gap-6">
+          <div className="mt-5 grid grid-cols-1 gap-5 lg:mt-6 lg:grid-cols-2 lg:gap-6">
             <section className="card p-6">
               <h2 className="mb-4 text-xl font-bold">Call Logs & Recordings</h2>
               {lead.callLogs?.map((c: any) => (

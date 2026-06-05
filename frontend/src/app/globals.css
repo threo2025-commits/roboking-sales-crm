@@ -7,11 +7,31 @@
   --brand-gold: #f7b733;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: #f4f7fb;
   color: #172033;
 }
 
 .card {
-  @apply rounded-2xl bg-white shadow-sm border border-slate-100;
+  @apply min-w-0 rounded-xl border border-slate-100 bg-white shadow-sm;
+}
+
+input,
+select,
+textarea,
+button {
+  max-width: 100%;
+}
+
+@media (max-width: 767px) {
+  .card {
+    @apply rounded-xl;
+  }
 }

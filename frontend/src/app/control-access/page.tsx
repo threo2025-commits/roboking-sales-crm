@@ -49,10 +49,10 @@ export default function ControlAccessPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-8 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-8 text-slate-950 shadow-2xl">
+    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-3 py-4 text-white sm:px-6 sm:py-8">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white p-5 text-slate-950 shadow-2xl sm:p-8">
         <div className="flex items-center gap-4">
-          <Image src="/logo/roboking-logo.png" alt="RoboKing" width={64} height={64} className="rounded-xl" priority />
+          <Image src="/logo/roboking-logo.png" alt="RoboKing" width={64} height={64} className="h-14 w-14 rounded-xl sm:h-16 sm:w-16" priority />
           <div>
             <div className="text-2xl font-bold">
               Robo<span className="text-brandGold">King</span>
@@ -62,7 +62,7 @@ export default function ControlAccessPage() {
         </div>
 
         <div className="mt-8">
-          <h1 className="text-3xl font-bold">Authorized Control Access</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">Authorized Control Access</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">For Owner and Manager only.</p>
         </div>
 

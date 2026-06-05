@@ -42,13 +42,13 @@ export default function DealsPage() {
   return (
     <AppShell>
       <PageHeader title="Deal Board" subtitle="Track sales progress stage-wise from New Lead to Converted/Lost." />
-      <form onSubmit={create} className="card mb-6 flex gap-3 p-4">
-        <input required placeholder="Deal title" value={title} onChange={(e)=>setTitle(e.target.value)} className="flex-1 rounded-xl border px-4 py-3 text-sm"/>
-        <input placeholder="Expected value" value={expectedValue} onChange={(e)=>setExpectedValue(e.target.value)} className="w-52 rounded-xl border px-4 py-3 text-sm"/>
-        <button className="rounded-xl bg-brandGold px-6 font-bold text-slate-950">Create Deal</button>
+      <form onSubmit={create} className="card mb-6 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_13rem_auto]">
+        <input required placeholder="Deal title" value={title} onChange={(e)=>setTitle(e.target.value)} className="min-w-0 rounded-xl border px-4 py-3 text-sm"/>
+        <input placeholder="Expected value" value={expectedValue} onChange={(e)=>setExpectedValue(e.target.value)} className="w-full rounded-xl border px-4 py-3 text-sm"/>
+        <button className="min-h-11 rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950 sm:col-span-2 lg:col-span-1">Create Deal</button>
       </form>
       {msg && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{msg}</div>}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stages.map(stage => (
           <section key={stage} className="card min-h-60 p-4">
             <h2 className="mb-3 font-bold">{stage.replaceAll('_',' ')}</h2>

@@ -52,22 +52,22 @@ export default function ImportsPage() {
   return (
     <AppShell>
       <PageHeader title="Excel Imports" subtitle="Admin, Manager and employees can upload leads. Only Owner/Manager can delete imported data." />
-      <section className="card p-6">
+      <section className="card p-4 sm:p-6">
         <h2 className="text-xl font-bold">Upload Excel Lead Sheet</h2>
         <p className="mt-1 text-sm text-slate-500">Preview validates rows and highlights exact phone/email duplicates before final import.</p>
-        <div className="mt-5 flex gap-3">
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)} className="rounded-xl border px-4 py-3" />
-          <button onClick={preview} className="rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950">Preview Import</button>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block min-w-0 flex-1 rounded-xl border px-3 py-3" />
+          <button onClick={preview} className="min-h-11 rounded-xl bg-brandGold px-6 py-3 font-bold text-slate-950">Preview Import</button>
         </div>
         {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-        {summary && <div className="mt-4 grid grid-cols-5 gap-3 rounded-xl bg-slate-50 p-4 text-sm"><div><b>Total</b><p>{summary.totalRows}</p></div><div><b>Imported</b><p>{summary.importedRows}</p></div><div><b>Duplicates</b><p>{summary.duplicateRows}</p></div><div><b>Invalid</b><p>{summary.invalidRows}</p></div><div><b>Skipped</b><p>{summary.skippedRows}</p></div></div>}
+        {summary && <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3 lg:grid-cols-5"><div><b>Total</b><p>{summary.totalRows}</p></div><div><b>Imported</b><p>{summary.importedRows}</p></div><div><b>Duplicates</b><p>{summary.duplicateRows}</p></div><div><b>Invalid</b><p>{summary.invalidRows}</p></div><div><b>Skipped</b><p>{summary.skippedRows}</p></div></div>}
         {duplicates > 0 && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">Duplicate contact found in {duplicates} row(s). Owner/Manager override is required for exact phone/email duplicates.</div>}
-        {rows.length > 0 && <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 p-4"><label className="text-sm">{['OWNER','MANAGER'].includes(role) ? <><input type="checkbox" checked={allowOverride} onChange={(e)=>setAllowOverride(e.target.checked)} className="mr-2"/>Owner/Manager duplicate override</> : 'Employees can import only non-duplicate rows. Duplicate override requires Owner/Manager.'}</label><button onClick={commit} className="rounded-xl bg-slate-950 px-5 py-2 text-sm font-bold text-white">Commit Import</button></div>}
+        {rows.length > 0 && <div className="mt-4 flex flex-col items-start justify-between gap-3 rounded-xl bg-slate-50 p-4 sm:flex-row sm:items-center"><label className="break-words text-sm">{['OWNER','MANAGER'].includes(role) ? <><input type="checkbox" checked={allowOverride} onChange={(e)=>setAllowOverride(e.target.checked)} className="mr-2"/>Owner/Manager duplicate override</> : 'Employees can import only non-duplicate rows. Duplicate override requires Owner/Manager.'}</label><button onClick={commit} className="min-h-11 w-full rounded-xl bg-slate-950 px-5 py-2 text-sm font-bold text-white sm:w-auto">Commit Import</button></div>}
       </section>
 
-      <section className="card mt-6 p-6">
+      <section className="card mt-5 overflow-x-auto p-4 sm:mt-6 sm:p-6">
         <h2 className="mb-4 text-xl font-bold">Preview Rows</h2>
-        <table className="w-full text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="text-xs uppercase text-slate-400"><tr><th className="py-3">Row</th><th>Organization</th><th>Phone</th><th>Email</th><th>Status</th><th>Warning</th></tr></thead>
           <tbody>
             {rows.slice(0, 50).map((r) => (
@@ -81,7 +81,7 @@ export default function ImportsPage() {
           </tbody>
         </table>
       </section>
-      <section className="card mt-6 p-6"><h2 className="mb-4 text-xl font-bold">Import History</h2>{history.map(h=><div key={h.id} className="mb-3 flex items-center justify-between rounded-xl border p-4 text-sm"><div><b>{h.fileName}</b><div className="text-slate-500">Uploaded by {h.uploadedBy?.name || '-'} · Total {h.totalRows} · Imported {h.importedRows} · Duplicates {h.duplicateRows}</div></div>{['OWNER','MANAGER'].includes(role) && <button onClick={() => deleteImport(h.id)} className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700">Delete imported data</button>}</div>)}{!history.length&&<p className="text-sm text-slate-500">No imports yet.</p>}</section>
+      <section className="card mt-5 p-4 sm:mt-6 sm:p-6"><h2 className="mb-4 text-xl font-bold">Import History</h2>{history.map(h=><div key={h.id} className="mb-3 flex flex-col items-start justify-between gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center"><div className="min-w-0 break-words"><b>{h.fileName}</b><div className="text-slate-500">Uploaded by {h.uploadedBy?.name || '-'} - Total {h.totalRows} - Imported {h.importedRows} - Duplicates {h.duplicateRows}</div></div>{['OWNER','MANAGER'].includes(role) && <button onClick={() => deleteImport(h.id)} className="min-h-10 w-full rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 sm:w-auto">Delete imported data</button>}</div>)}{!history.length&&<p className="text-sm text-slate-500">No imports yet.</p>}</section>
     </AppShell>
   );
 }

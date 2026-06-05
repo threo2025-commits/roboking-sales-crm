@@ -130,7 +130,7 @@ export default function CommunicationsPage() {
   return (
     <AppShell>
       <PageHeader title="Communications" subtitle="Call, WhatsApp, email, and manual client conversation entry from one screen." />
-      <section className="card mb-6 p-6">
+      <section className="card mb-5 p-4 sm:mb-6 sm:p-6">
         <h2 className="text-xl font-bold">Select Communication Context</h2>
         <p className="mt-1 text-sm text-slate-500">Link calls to a lead, client, or deal. Selecting an item auto-fills contact details where available.</p>
         <select value={selectedLeadId} onChange={(e) => applyLead(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm">
@@ -147,8 +147,8 @@ export default function CommunicationsPage() {
         </select>
       </section>
 
-      <div className="grid grid-cols-3 gap-6">
-        <section className="card p-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">WhatsApp Prefill</h2>
           <p className="mt-1 text-sm text-slate-500">Opens employee&apos;s own WhatsApp app/web with client number and message.</p>
           <select onChange={(e) => applyWhatsappTemplate(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm"><option value="">Choose WhatsApp template</option>{whatsappTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
@@ -159,18 +159,18 @@ export default function CommunicationsPage() {
           <button onClick={openWhatsApp} className="mt-3 w-full rounded-xl bg-emerald-500 py-3 font-bold text-white">Open WhatsApp</button>
         </section>
 
-        <section className="card p-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Email Compose</h2>
           <p className="mt-1 text-sm text-slate-500">Sends from logged-in employee Hostinger email and auto-BCCs admin.</p>
           <select onChange={(e) => applyEmailTemplate(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm"><option value="">Choose email template</option>{emailTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
           <input value={email.toEmail} onChange={(e) => setEmail({ ...email, toEmail: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="To" />
           <input value={email.subject} onChange={(e) => setEmail({ ...email, subject: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Subject" />
           <textarea value={email.bodyHtml} onChange={(e) => setEmail({ ...email, bodyHtml: e.target.value })} className="mt-3 h-32 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Body" />
-          <input type="file" multiple onChange={(e) => setAttachments(Array.from(e.target.files || []))} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input type="file" multiple onChange={(e) => setAttachments(Array.from(e.target.files || []))} className="mt-3 block w-full min-w-0 rounded-xl border px-3 py-3 text-sm" />
           <button onClick={sendEmail} className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950">Send Email</button>
         </section>
 
-        <section className="card p-6">
+        <section className="card p-4 sm:p-6 lg:col-span-2 xl:col-span-1">
           <h2 className="text-xl font-bold">Manual Call Entry</h2>
           <p className="mt-1 text-sm text-slate-500">Select a linked lead, client, or deal above. Recording upload is mandatory.</p>
           <input value={callLog.phone} onChange={(e) => setCallLog({ ...callLog, phone: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Phone" />
@@ -180,7 +180,7 @@ export default function CommunicationsPage() {
           <input value={callLog.budgetDiscussed} onChange={(e) => setCallLog({ ...callLog, budgetDiscussed: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Budget discussed" />
           <input value={callLog.productInterest} onChange={(e) => setCallLog({ ...callLog, productInterest: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Product interest" />
           <textarea value={callLog.summary} onChange={(e) => setCallLog({ ...callLog, summary: e.target.value })} className="mt-3 h-20 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Call summary" />
-          <input type="file" onChange={(e) => setRecording(e.target.files?.[0] || null)} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input type="file" onChange={(e) => setRecording(e.target.files?.[0] || null)} className="mt-3 block w-full min-w-0 rounded-xl border px-3 py-3 text-sm" />
           <button onClick={saveCallLog} className="mt-3 w-full rounded-xl bg-slate-950 py-3 font-bold text-white">Save Call Log</button>
         </section>
       </div>

@@ -68,8 +68,8 @@ export default function ChatPage() {
     <AppShell>
       <PageHeader title="Internal Chat" subtitle="Admin-created groups, direct chat when allowed, and chat history visible to Owner/Manager." />
       {msg && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{msg}</div>}
-      <div className="grid grid-cols-4 gap-6">
-        <section className="card p-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-4 lg:gap-6">
+        <section className="card p-4 sm:p-6">
           <h2 className="font-bold">Start Direct Chat</h2>
           <select value={directMemberId} onChange={(e) => setDirectMemberId(e.target.value)} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
             <option value="">Select user</option>
@@ -95,9 +95,9 @@ export default function ChatPage() {
           ))}
         </section>
 
-        <section className="card col-span-3 p-6">
+        <section className="card min-w-0 p-4 sm:p-6 lg:col-span-3">
           <h2 className="mb-4 text-xl font-bold">{active?.title || 'Select conversation'}</h2>
-          <div className="h-[420px] overflow-auto rounded-xl bg-slate-50 p-4">
+          <div className="h-[50vh] min-h-72 max-h-[520px] overflow-auto rounded-xl bg-slate-50 p-3 sm:p-4">
             {messages.map((m) => (
               <div key={m.id} className="mb-3 rounded-xl bg-white p-3 text-sm shadow-sm">
                 <b>{m.sender?.name}</b>
@@ -106,9 +106,9 @@ export default function ChatPage() {
               </div>
             ))}
           </div>
-          <div className="mt-4 flex gap-3">
-            <input value={body} onChange={(e) => setBody(e.target.value)} className="flex-1 rounded-xl border px-4 py-3 text-sm" placeholder="Write message..." />
-            <button onClick={send} className="rounded-xl bg-slate-950 px-6 font-bold text-white">Send</button>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input value={body} onChange={(e) => setBody(e.target.value)} className="min-w-0 flex-1 rounded-xl border px-4 py-3 text-sm" placeholder="Write message..." />
+            <button onClick={send} className="min-h-11 rounded-xl bg-slate-950 px-6 py-3 font-bold text-white">Send</button>
           </div>
         </section>
       </div>

@@ -81,8 +81,8 @@ export default function LeadsPage() {
         title="My Leads"
         subtitle={canDelete ? 'Owner/Manager can delete leads. Deleted leads stay visible here in red and are hidden from PA/Employee views.' : 'Create manual leads, view assigned clients, and catch duplicate contacts before they enter the system.'}
       />
-      <div className="grid grid-cols-3 gap-6">
-        <form onSubmit={createLead} className="card p-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <form onSubmit={createLead} className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Add Manual Lead</h2>
           <p className="mt-1 text-sm text-slate-500">Employee-created leads are visible to Owner/Manager immediately.</p>
           <div className="mt-5 space-y-3">
@@ -104,7 +104,7 @@ export default function LeadsPage() {
           </div>
         </form>
 
-        <section className="card col-span-2 p-6">
+        <section className="card p-4 sm:p-6 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold">Recent Leads</h2>
             <button onClick={load} className="rounded-xl border px-4 py-2 text-sm font-bold">Refresh</button>

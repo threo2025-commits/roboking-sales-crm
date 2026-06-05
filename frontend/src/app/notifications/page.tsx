@@ -37,8 +37,8 @@ export default function NotificationsPage() {
 
   return <AppShell>
     <PageHeader title="Notifications & PA Reminders" subtitle="Owner, Manager, and PA can send reminders to employees. Employees see assigned/global alerts." />
-    <div className="grid grid-cols-3 gap-6">
-      <form onSubmit={send} className="card p-6">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+      <form onSubmit={send} className="card p-4 sm:p-6">
         <h2 className="text-xl font-bold">Send Reminder</h2>
         <select value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm">
           <option value="">All users / global notification</option>
@@ -49,16 +49,16 @@ export default function NotificationsPage() {
         <button className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950">Send Reminder</button>
         {msg && <p className="mt-3 text-sm text-slate-600">{msg}</p>}
       </form>
-      <section className="card col-span-2 p-6">
+      <section className="card p-4 sm:p-6 lg:col-span-2">
         <h2 className="mb-4 text-xl font-bold">Recent Notifications</h2>
         <div className="space-y-3">
-          {notes.map((n) => <div key={n.id} className="flex items-start justify-between rounded-xl border p-4">
-            <div>
+          {notes.map((n) => <div key={n.id} className="flex flex-col items-start justify-between gap-3 rounded-xl border p-4 sm:flex-row">
+            <div className="min-w-0 break-words">
               <div className="font-bold">{n.title}</div>
               <div className="mt-1 text-sm text-slate-600">{n.body || 'No message'}</div>
               <div className="mt-2 text-xs text-slate-400">{new Date(n.createdAt).toLocaleString()} · {n.readAt ? 'Read' : 'Unread'}</div>
             </div>
-            {!n.readAt && <button onClick={() => markRead(n.id)} className="rounded-lg border px-3 py-2 text-sm">Mark read</button>}
+            {!n.readAt && <button onClick={() => markRead(n.id)} className="min-h-11 w-full rounded-lg border px-3 py-2 text-sm sm:w-auto">Mark read</button>}
           </div>)}
         </div>
       </section>
