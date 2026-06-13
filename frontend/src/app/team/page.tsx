@@ -12,6 +12,8 @@ export default function TeamPage() {
   const [resetRequests, setResetRequests] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE', managerId: '' });
   const [msg, setMsg] = useState('');
+  const [formMsg, setFormMsg] = useState('');
+  const [creating, setCreating] = useState(false);
   const [emailSetup, setEmailSetup] = useState({ userId: '', emailAddress: '', password: '', smtpHost: 'smtp.hostinger.com', smtpPort: 465, imapHost: 'imap.hostinger.com', imapPort: 993 });
 
   async function load() {
@@ -23,19 +25,61 @@ export default function TeamPage() {
   useEffect(() => { load(); }, []);
 
   async function createUser(e: FormEvent) {
-    e.preventDefault(); setMsg('');
-    try { await api('/users', { method: 'POST', body: JSON.stringify({ ...form, emailAddress: form.email, managerId: form.managerId || undefined }) }); setMsg('User created with their sales email. They must change password after login.'); setForm({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE', managerId: '' }); load(); }
-    catch (e: any) { setMsg(e.message); }
+    e.preventDefault();
+    setFormMsg('');
+    const name = form.name.trim();
+    const loginId = form.loginId.trim();
+    const email = form.email.trim();
+    if (!name || !loginId || !email) {
+      setFormMsg('Name, Login ID, and sales email are required.');
+      return;
+    }
+    if (form.password.length < 8) {
+      setFormMsg('Temporary password must contain at least 8 characters.');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      await api('/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          name,
+          loginId,
+          email,
+          emailAddress: email,
+          managerId: form.managerId || undefined
+        })
+      });
+      setFormMsg(`Login ID "${loginId}" created successfully. The user must change the temporary password after login.`);
+      setForm({ name: '', loginId: '', email: '', password: 'ChangeMe@123', role: 'EMPLOYEE', managerId: '' });
+      await load();
+    } catch (error: any) {
+      setFormMsg(error.message || 'Unable to create this Login ID.');
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function forceLogout(id: string) {
-    await api(`/users/${id}/force-logout`, { method: 'POST' });
-    setMsg('User force logged out.'); load();
+    try {
+      await api(`/users/${id}/force-logout`, { method: 'POST' });
+      setMsg('User force logged out.');
+      await load();
+    } catch (error: any) {
+      setMsg(error.message || 'Unable to force logout this user.');
+    }
   }
 
   async function toggleStatus(id: string, status: string) {
-    await api(`/users/${id}/${status === 'ACTIVE' ? 'disable' : 'enable'}`, { method: 'POST' });
-    setMsg(status === 'ACTIVE' ? 'User disabled and active session closed.' : 'User enabled.'); load();
+    try {
+      await api(`/users/${id}/${status === 'ACTIVE' ? 'disable' : 'enable'}`, { method: 'POST' });
+      setMsg(status === 'ACTIVE' ? 'User disabled and active session closed.' : 'User enabled.');
+      await load();
+    } catch (error: any) {
+      setMsg(error.message || 'Unable to update this user.');
+    }
   }
 
 
@@ -52,8 +96,17 @@ export default function TeamPage() {
   async function resetPassword(id: string, resetRequestId?: string) {
     const newPassword = prompt('Enter new password for user');
     if (!newPassword) return;
-    await api('/users/reset-password', { method: 'POST', body: JSON.stringify({ userId: id, newPassword, resetRequestId }) });
-    setMsg('Password reset done. User must login with new password.'); load();
+    if (newPassword.length < 8) {
+      setMsg('New password must contain at least 8 characters.');
+      return;
+    }
+    try {
+      await api('/users/reset-password', { method: 'POST', body: JSON.stringify({ userId: id, newPassword, resetRequestId }) });
+      setMsg('Password reset done. User must login with the new password.');
+      await load();
+    } catch (error: any) {
+      setMsg(error.message || 'Unable to reset this password.');
+    }
   }
 
   return (
@@ -62,10 +115,11 @@ export default function TeamPage() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         <form onSubmit={createUser} className="card p-4 sm:p-6">
           <h2 className="text-xl font-bold">Create User</h2>
-          <input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" />
-          <input placeholder="Login ID" value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
-          <input required type="email" placeholder="Sales email (name@roboking.in)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
-          <input placeholder="Temporary password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <p className="mt-1 text-sm text-slate-500">All fields except manager are required.</p>
+          <input required autoComplete="name" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input required autoComplete="off" placeholder="Login ID" value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input required type="email" autoComplete="email" placeholder="Sales email (name@roboking.in)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
+          <input required minLength={8} type="password" autoComplete="new-password" placeholder="Temporary password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" />
           <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
             <option value="OWNER">Owner</option><option value="MANAGER">Manager</option><option value="PA_ADMIN_ASSISTANT">PA / Admin Assistant</option><option value="EMPLOYEE">Employee</option>
           </select>
@@ -73,7 +127,14 @@ export default function TeamPage() {
             <option value="">Manager (optional)</option>
             {users.filter((user) => ['OWNER', 'MANAGER'].includes(user.role)).map((user) => <option key={user.id} value={user.id}>{user.name} - {user.role}</option>)}
           </select>
-          <button className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950">Create Login ID</button>
+          <button disabled={creating} className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60">
+            {creating ? 'Creating Login ID...' : 'Create Login ID'}
+          </button>
+          {formMsg && (
+            <div role="status" className={`mt-3 rounded-xl px-4 py-3 text-sm ${formMsg.includes('successfully') ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
+              {formMsg}
+            </div>
+          )}
         </form>
 
         <section className="card p-4 sm:p-6 lg:col-span-2">
@@ -95,7 +156,7 @@ export default function TeamPage() {
         <form onSubmit={connectEmail} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <select value={emailSetup.userId} onChange={(e) => setEmailSetup({ ...emailSetup, userId: e.target.value })} className="rounded-xl border px-4 py-3 text-sm" required>
             <option value="">Select employee/user</option>
-            {users.map((u) => <option key={u.id} value={u.id}>{u.name} · {u.loginId} · {u.role}</option>)}
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name} - {u.loginId} - {u.role}</option>)}
           </select>
           <input value={emailSetup.emailAddress} onChange={(e) => setEmailSetup({ ...emailSetup, emailAddress: e.target.value })} className="rounded-xl border px-4 py-3 text-sm" placeholder="employee@roboking.in" required />
           <input type="password" value={emailSetup.password} onChange={(e) => setEmailSetup({ ...emailSetup, password: e.target.value })} className="rounded-xl border px-4 py-3 text-sm" placeholder="Hostinger mailbox password" required />

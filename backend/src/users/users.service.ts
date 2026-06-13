@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
@@ -45,6 +45,20 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto, actorId?: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { loginId: dto.loginId },
+          { email: dto.email },
+          { emailAddress: dto.emailAddress || dto.email }
+        ]
+      },
+      select: { id: true }
+    });
+    if (existing) {
+      throw new ConflictException('A user with this Login ID or sales email already exists.');
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
