@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import type { Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { ToastHost } from '@/components/ToastHost';
 
 export const metadata: Metadata = {
   title: 'RoboKing Sales Platform CRM',
@@ -16,7 +17,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ToastHost />
+      </body>
     </html>
   );
 }
