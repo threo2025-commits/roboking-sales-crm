@@ -21,11 +21,45 @@ export default function ReportsPage() {
   const [msg, setMsg] = useState('');
   const [role, setRole] = useState('');
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
+  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '', employeeId: '', source: '', status: '', productInterest: '', region: '' });
 
   useEffect(() => {
-    api('/reports/overview').then(setData).catch((e: any) => setMsg(e.message));
+    setLoading(true);
+    api<any>('/reports/overview')
+      .then((result) => {
+        setData(result);
+        setEmployees(result.filters?.employees || []);
+        setSources(result.filters?.sources || []);
+      })
+      .catch((e: any) => setMsg(e.message))
+      .finally(() => setLoading(false));
     try { setRole(JSON.parse(localStorage.getItem('rk_crm_user') || '{}').role || ''); } catch {}
   }, []);
+
+  async function loadReports(nextFilters = filters) {
+    setLoading(true);
+    setMsg('');
+    try {
+      const query = new URLSearchParams(Object.entries(nextFilters).filter(([, value]) => value));
+      const result: any = await api(`/reports/overview${query.size ? `?${query}` : ''}`);
+      setData(result);
+      setEmployees((current) => current.length ? current : result.filters?.employees || []);
+      setSources((current) => current.length ? current : result.filters?.sources || []);
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function resetFilters() {
+    const empty = { dateFrom: '', dateTo: '', employeeId: '', source: '', status: '', productInterest: '', region: '' };
+    setFilters(empty);
+    loadReports(empty);
+  }
 
   const maxSource = useMemo(() => Math.max(0, ...(data?.leadSource || []).map((item: any) => item.total)), [data]);
   const maxEmployee = useMemo(() => Math.max(0, ...(data?.employeePerformance || []).map((item: any) => item.activities)), [data]);
@@ -44,6 +78,23 @@ export default function ReportsPage() {
   return <AppShell>
     <PageHeader title="Reports & Analytics" subtitle="Live sales, follow-up, employee, communication, and revenue performance." />
     {msg && <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{msg}</div>}
+
+    <section className="card mb-5 p-4 sm:p-6">
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+        <div><h2 className="font-bold">Report Filters</h2><p className="mt-1 text-sm text-slate-500">Apply the same scope across sales, activity, communication, and pipeline metrics.</p></div>
+        {loading && <span className="text-sm font-semibold text-brandGoldDark">Updating...</span>}
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="text-xs font-bold text-slate-600">From date<input type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950" /></label>
+        <label className="text-xs font-bold text-slate-600">To date<input type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950" /></label>
+        <label className="text-xs font-bold text-slate-600">Employee<select value={filters.employeeId} onChange={(e) => setFilters({ ...filters, employeeId: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950"><option value="">All visible employees</option>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label className="text-xs font-bold text-slate-600">Lead source<select value={filters.source} onChange={(e) => setFilters({ ...filters, source: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950"><option value="">All sources</option>{sources.map((source) => <option key={source} value={source}>{source}</option>)}</select></label>
+        <label className="text-xs font-bold text-slate-600">Lead status<select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950"><option value="">All statuses</option>{['NEW_LEAD', 'CONTACTED', 'STARTED', 'IN_PROGRESS', 'FOLLOW_UP_LATER', 'CONVERTED', 'LOST'].map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select></label>
+        <label className="text-xs font-bold text-slate-600">Product interest<input value={filters.productInterest} onChange={(e) => setFilters({ ...filters, productInterest: e.target.value })} placeholder="e.g. robot arm" className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950" /></label>
+        <label className="text-xs font-bold text-slate-600">Region<input value={filters.region} onChange={(e) => setFilters({ ...filters, region: e.target.value })} placeholder="City or state" className="mt-1 w-full rounded-xl border px-3 py-3 text-sm font-normal text-slate-950" /></label>
+        <div className="flex items-end gap-2"><button disabled={loading} onClick={() => loadReports()} className="min-h-11 flex-1 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">Apply</button><button disabled={loading} onClick={resetFilters} className="min-h-11 rounded-xl border px-4 py-3 text-sm font-bold disabled:opacity-50">Reset</button></div>
+      </div>
+    </section>
 
     {canExport && <section className="card mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between sm:p-6">
       <div><h2 className="font-bold">Monthly CRM Export</h2><p className="mt-1 text-sm text-slate-500">Leads, deals, follow-ups, activity, revenue, lost leads, and communications.</p></div>

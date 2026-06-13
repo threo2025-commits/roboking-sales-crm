@@ -10,9 +10,9 @@ import { api } from '@/lib/api';
 const journey = [
   { label: 'New / Created', statuses: ['NEW_LEAD'] },
   { label: 'Started / Contacted', statuses: ['STARTED', 'CONTACTED'] },
-  { label: 'In Progress', statuses: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'] },
+  { label: 'Interested', statuses: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'] },
   { label: 'Follow-up Later', statuses: ['FOLLOW_UP_LATER', 'ON_HOLD'] },
-  { label: 'Converted', statuses: ['CONVERTED'] },
+  { label: 'Converted / Deal', statuses: ['CONVERTED'] },
   { label: 'Failed / Lost', statuses: ['LOST', 'INVALID_CONTACT'] }
 ];
 
@@ -56,6 +56,98 @@ export default function LeadDetailPage() {
   const lastCall = lead?.callLogs?.[0];
   const lastEmail = lead?.emailMessages?.[0];
   const lastWhatsapp = lead?.whatsappLogs?.[0];
+  const timeline = useMemo(() => {
+    if (!lead) return [];
+    const items: any[] = [];
+    (lead.auditLogs || []).forEach((item: any) => items.push({
+      id: `audit-${item.id}`,
+      type: item.action?.includes('STATUS') || item.action?.includes('STAGE') ? 'STATUS' : 'AUDIT',
+      title: item.action?.replaceAll('_', ' ') || 'Lead updated',
+      detail: item.beforeState?.status || item.afterState?.status
+        ? `${item.beforeState?.status?.replaceAll('_', ' ') || 'New'} to ${item.afterState?.status?.replaceAll('_', ' ') || '-'}`
+        : item.notes,
+      actor: item.actor,
+      actorRole: item.actorRole,
+      at: item.createdAt,
+      ipAddress: item.ipAddress,
+      userAgent: item.userAgent
+    }));
+    (lead.assignmentHistory || []).forEach((item: any) => items.push({
+      id: `assignment-${item.id}`,
+      type: 'ASSIGNMENT',
+      title: 'Lead reassigned',
+      detail: `${item.fromUser?.name || 'Unassigned'} to ${item.toUser?.name || 'Unassigned'}`,
+      actor: item.changedBy,
+      at: item.createdAt
+    }));
+    (lead.activities || []).forEach((item: any) => items.push({
+      id: `activity-${item.id}`,
+      type: item.type || 'ACTIVITY',
+      title: item.type?.replaceAll('_', ' ') || 'Activity',
+      detail: item.summary,
+      actor: item.user,
+      at: item.createdAt
+    }));
+    (lead.callLogs || []).forEach((item: any) => items.push({
+      id: `call-${item.id}`,
+      type: 'CALL',
+      title: `Call log - ${item.status?.replaceAll('_', ' ') || 'Recorded'}`,
+      detail: [
+        item.durationSeconds ? `Duration ${item.durationSeconds} sec` : '',
+        item.productInterest ? `Interest: ${item.productInterest}` : '',
+        item.budgetDiscussed ? `Budget: Rs ${Number(item.budgetDiscussed).toLocaleString('en-IN')}` : '',
+        item.summary
+      ].filter(Boolean).join(' | '),
+      actor: item.employee,
+      at: item.createdAt,
+      recordingFile: item.recordingFile
+    }));
+    (lead.emailMessages || []).forEach((item: any) => items.push({
+      id: `email-${item.id}`,
+      type: 'EMAIL',
+      title: item.subject || 'Email',
+      detail: `${item.direction || 'SENT'} - ${item.fromEmail || '-'} to ${item.toEmail || '-'}`,
+      actor: item.senderUser,
+      at: item.sentAt || item.receivedAt || item.createdAt
+    }));
+    (lead.whatsappLogs || []).forEach((item: any) => items.push({
+      id: `whatsapp-${item.id}`,
+      type: 'WHATSAPP',
+      title: 'WhatsApp message',
+      detail: item.message,
+      actor: item.employee,
+      at: item.createdAt
+    }));
+    (lead.followups || []).forEach((item: any) => items.push({
+      id: `followup-${item.id}`,
+      type: 'FOLLOW_UP',
+      title: item.title || 'Follow-up',
+      detail: `${item.status?.replaceAll('_', ' ') || 'PENDING'} - due ${formatDate(item.dueAt)}${item.notes ? ` - ${item.notes}` : ''}`,
+      actor: item.assignedTo,
+      at: item.updatedAt || item.createdAt || item.dueAt
+    }));
+    (lead.tasks || []).forEach((item: any) => items.push({
+      id: `task-${item.id}`,
+      type: 'TASK',
+      title: item.title || 'Task',
+      detail: `${item.status?.replaceAll('_', ' ') || 'PENDING'}${item.description ? ` - ${item.description}` : ''}`,
+      actor: item.createdBy,
+      at: item.createdAt
+    }));
+    if (!items.some((item) => item.type === 'AUDIT' && item.title?.includes('CREATE'))) {
+      items.push({
+        id: `created-${lead.id}`,
+        type: 'CREATED',
+        title: 'Lead created',
+        detail: lead.source ? `Source: ${lead.source}` : undefined,
+        actor: lead.createdBy,
+        at: lead.createdAt
+      });
+    }
+    return items
+      .filter((item) => item.at)
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  }, [lead]);
 
   async function changeStage(status: string) {
     if (status === 'FOLLOW_UP_LATER' && !followupAt) {
@@ -95,8 +187,8 @@ export default function LeadDetailPage() {
     <AppShell>
       <PageHeader
         title={lead?.organization || 'Lead Details'}
-        subtitle={lead?.deletedAt ? 'This lead has been deleted and is visible only to Owner/Manager.' : 'Lead journey, ownership, communication history, and next actions.'}
-        action={<Link href="/leads" className="rounded-xl border bg-white px-4 py-2 text-sm font-bold">Back to leads</Link>}
+        subtitle={lead?.deletedAt ? 'This opportunity has been deleted and is visible only to Owner/Manager.' : 'Opportunity stage, linked deal, ownership, communication history, and next actions.'}
+        action={<Link href="/leads/pipeline" className="rounded-xl border bg-white px-4 py-2 text-sm font-bold">Back to Pipeline</Link>}
       />
       {msg && <div className="mb-4 rounded-xl bg-slate-100 p-3 text-sm">{msg}</div>}
       {!lead ? <section className="card p-6 text-sm text-slate-500">Loading lead...</section> : (
@@ -110,9 +202,15 @@ export default function LeadDetailPage() {
               </div>
               {!lead.deletedAt && <div className="flex flex-wrap gap-2">
                 <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Call</a>
-                <Link href="/communications" className="rounded-xl bg-brandGold px-4 py-2 text-sm font-bold text-slate-950">Communicate</Link>
+                <a href={(lead.whatsapp || lead.phone) ? `https://wa.me/${String(lead.whatsapp || lead.phone).replace(/[^0-9]/g, '')}` : '#'} target="_blank" rel="noreferrer" className="rounded-xl border px-4 py-2 text-sm font-bold">WhatsApp</a>
+                <Link href={`/communications?leadId=${lead.id}`} className="rounded-xl bg-brandGold px-4 py-2 text-sm font-bold text-slate-950">Email / Call Log</Link>
               </div>}
             </div>
+            {!!lead.deals?.length && <div className="mt-5 grid gap-3 border-t border-slate-200 pt-5 sm:grid-cols-3">
+              <div><div className="text-xs font-bold uppercase text-emerald-700">Linked Deal</div><p className="mt-1 font-bold">{lead.deals[0].title}</p></div>
+              <div><div className="text-xs font-bold uppercase text-slate-500">Deal Stage</div><p className="mt-1 font-bold">{lead.deals[0].stage.replaceAll('_', ' ')}</p></div>
+              <div><div className="text-xs font-bold uppercase text-slate-500">Expected Value</div><p className="mt-1 font-bold">{lead.deals[0].expectedValue ? `Rs ${Number(lead.deals[0].expectedValue).toLocaleString('en-IN')}` : '-'}</p></div>
+            </div>}
           </section>
 
           {!lead.deletedAt && <section className="card mt-5 p-4 sm:mt-6 sm:p-6">
@@ -169,15 +267,36 @@ export default function LeadDetailPage() {
             </div>}
           </section>
 
-          <div className="mt-5 grid grid-cols-1 gap-5 lg:mt-6 lg:grid-cols-2">
-            <section className="card p-4 sm:p-6"><h2 className="mb-4 text-xl font-bold">Call Logs & Recordings</h2>{lead.callLogs?.map((c: any) => <div key={c.id} className="mb-3 rounded-xl border p-4 text-sm"><b>{c.status}</b><div className="text-slate-500">{c.employee?.name || '-'} - {formatDate(c.createdAt)} - Duration {c.durationSeconds || '-'} sec</div><p className="mt-2">{c.summary || '-'}</p>{c.recordingFile && <button onClick={() => download(c.recordingFile.id)} className="mt-3 rounded-lg border px-3 py-2 text-xs font-bold">Download Recording</button>}</div>)}{!lead.callLogs?.length && <p className="text-sm text-slate-500">No call logs yet.</p>}</section>
-            <section className="card p-4 sm:p-6"><h2 className="mb-4 text-xl font-bold">Follow-ups</h2>{lead.followups?.map((f: any) => <div key={f.id} className="mb-3 rounded-xl border p-4 text-sm"><b>{f.title}</b><div className="text-slate-500">{formatDate(f.dueAt)} - {f.status}</div><p>{f.notes || ''}</p></div>)}{!lead.followups?.length && <p className="text-sm text-slate-500">No follow-ups yet.</p>}</section>
-            <section className="card p-4 sm:p-6"><h2 className="mb-4 text-xl font-bold">Communication Timeline</h2>
-              {[...(lead.emailMessages || []).map((m: any) => ({ id: m.id, type: 'EMAIL', title: m.subject, by: m.senderUser?.name, at: m.sentAt || m.receivedAt || m.createdAt })), ...(lead.whatsappLogs || []).map((m: any) => ({ id: m.id, type: 'WHATSAPP', title: m.message, by: m.employee?.name, at: m.createdAt }))].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).map((item: any) => <div key={`${item.type}-${item.id}`} className="mb-3 rounded-xl border p-4 text-sm"><b>{item.type}: {item.title}</b><div className="text-slate-500">{item.by || '-'} - {formatDate(item.at)}</div></div>)}
-              {!lead.emailMessages?.length && !lead.whatsappLogs?.length && <p className="text-sm text-slate-500">No messages yet.</p>}
-            </section>
-            <section className="card p-4 sm:p-6"><h2 className="mb-4 text-xl font-bold">Detailed Activity</h2>{lead.auditLogs?.map((a: any) => <div key={a.id} className="mb-3 rounded-xl border p-4 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b>{a.action.replaceAll('_', ' ')}</b><span className="text-xs text-slate-500">{formatDate(a.createdAt)}</span></div><p className="mt-1">{a.actor?.name || 'System'} - {(a.actorRole || a.actor?.role || '').replaceAll('_', ' ')}</p>{a.beforeState?.status || a.afterState?.status ? <div className="mt-2 text-xs text-slate-500">{a.beforeState?.status || '-'} to {a.afterState?.status || '-'}</div> : null}{a.notes && <p className="mt-2 text-slate-600">{a.notes}</p>}{canManage && (a.ipAddress || a.userAgent) && <div className="mt-2 break-all rounded-lg bg-slate-50 p-2 text-xs text-slate-500">IP: {a.ipAddress || '-'}<br />Agent: {a.userAgent || '-'}</div>}</div>)}{!lead.auditLogs?.length && <p className="text-sm text-slate-500">No activity yet.</p>}</section>
-          </div>
+          <section className="card mt-5 p-4 sm:mt-6 sm:p-6">
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+              <div><h2 className="text-xl font-bold">Activity Timeline</h2><p className="mt-1 text-sm text-slate-500">Calls, messages, assignments, follow-ups, tasks, notes, and journey changes in one place.</p></div>
+              <span className="text-sm font-semibold text-slate-500">{timeline.length} events</span>
+            </div>
+            <div className="relative mt-6 space-y-4 before:absolute before:bottom-3 before:left-[15px] before:top-3 before:w-px before:bg-slate-200 sm:before:left-[19px]">
+              {timeline.map((item: any) => <article key={item.id} className="relative pl-11 sm:pl-14">
+                <div className="absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-slate-950 text-[9px] font-bold text-white shadow-sm sm:h-10 sm:w-10">
+                  {item.type.slice(0, 2)}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-start">
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold uppercase text-brandGoldDark">{item.type.replaceAll('_', ' ')}</div>
+                      <h3 className="mt-1 break-words font-bold text-slate-950">{item.title}</h3>
+                    </div>
+                    <time className="shrink-0 text-xs text-slate-500">{formatDate(item.at)}</time>
+                  </div>
+                  {item.detail && <p className="mt-2 break-words text-sm leading-6 text-slate-600">{item.detail}</p>}
+                  <p className="mt-2 text-xs text-slate-500">
+                    {item.actor?.name || 'System'}
+                    {(item.actorRole || item.actor?.role) ? ` - ${(item.actorRole || item.actor.role).replaceAll('_', ' ')}` : ''}
+                  </p>
+                  {item.recordingFile && <button onClick={() => download(item.recordingFile.id)} className="mt-3 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold hover:border-brandGold">Download Recording</button>}
+                  {canManage && (item.ipAddress || item.userAgent) && <div className="mt-3 break-all rounded-lg bg-slate-50 p-2 text-xs text-slate-500">IP: {item.ipAddress || '-'}<br />Agent: {item.userAgent || '-'}</div>}
+                </div>
+              </article>)}
+              {!timeline.length && <p className="pl-11 text-sm text-slate-500 sm:pl-14">No activity yet.</p>}
+            </div>
+          </section>
         </>
       )}
     </AppShell>

@@ -11,14 +11,20 @@ type AuthUser = { sub: string; role: Role };
 export class ImportsService {
   constructor(private prisma: PrismaService, private leads: LeadsService) {}
 
-  async preview(file: Express.Multer.File) {
+  async preview(file: Express.Multer.File, mapping?: Record<string, string>) {
     if (!file) throw new BadRequestException('Excel file is required');
+    if (file.size > 10 * 1024 * 1024) throw new BadRequestException('Excel file is too large. Maximum size is 10MB.');
+    const extension = file.originalname.split('.').pop()?.toLowerCase();
+    if (!extension || !['xlsx', 'xls', 'csv'].includes(extension)) throw new BadRequestException('Only XLSX, XLS, or CSV files are allowed.');
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const sourceRows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+    const columns = sourceRows.length ? Object.keys(sourceRows[0]) : [];
+    const suggestedMapping = this.suggestMapping(columns);
+    const activeMapping = mapping || suggestedMapping;
     const rows = [];
     for (const [idx, row] of sourceRows.entries()) {
-      const data = this.mapRow(row);
+      const data = this.mapRow(row, activeMapping);
       const duplicate = await this.leads.findDuplicate({ phone: data.phone, email: data.email });
       const status = !data.organization ? 'FAILED' : duplicate ? 'DUPLICATE' : 'VALID';
       rows.push({
@@ -29,7 +35,16 @@ export class ImportsService {
         error: !data.organization ? 'Organization/company name is required' : undefined
       });
     }
-    return { totalRows: rows.length, duplicateRows: rows.filter((r) => r.status === 'DUPLICATE').length, failedRows: rows.filter((r) => r.status === 'FAILED').length, rows };
+    return {
+      totalRows: rows.length,
+      duplicateRows: rows.filter((r) => r.status === 'DUPLICATE').length,
+      failedRows: rows.filter((r) => r.status === 'FAILED').length,
+      columns,
+      suggestedMapping,
+      mapping: activeMapping,
+      rawPreview: sourceRows.slice(0, 10),
+      rows
+    };
   }
 
   async commit(dto: CommitImportDto, user: AuthUser) {
@@ -103,17 +118,45 @@ export class ImportsService {
     return { ok: true, deletedLeadCount: leadIds.length };
   }
 
-  private mapRow(row: Record<string, any>) {
+  private mapRow(row: Record<string, any>, mapping: Record<string, string>) {
+    const mapped = Object.entries(mapping).reduce<Record<string, any>>((result, [column, field]) => {
+      if (field && row[column] !== undefined) result[field] = row[column];
+      return result;
+    }, {});
     return {
-      organization: String(row.Organization || row.organization || row['Company Name'] || row.Company || row.School || '').trim(),
-      contactName: String(row['Contact Person'] || row.contactName || row.Name || '').trim(),
-      phone: String(row.Phone || row.phone || row.Mobile || '').trim(),
-      whatsapp: String(row.WhatsApp || row.whatsapp || row.Phone || '').trim(),
-      email: String(row.Email || row.email || '').trim(),
-      city: String(row.City || row.city || '').trim(),
-      state: String(row.State || row.state || '').trim(),
-      requirement: String(row.Requirement || row.requirement || '').trim(),
-      source: String(row.Source || row.source || 'Excel Import').trim()
+      organization: String(mapped.organization || '').trim(),
+      contactName: String(mapped.contactName || '').trim(),
+      phone: String(mapped.phone || '').trim(),
+      whatsapp: String(mapped.whatsapp || mapped.phone || '').trim(),
+      email: String(mapped.email || '').trim(),
+      city: String(mapped.city || '').trim(),
+      state: String(mapped.state || '').trim(),
+      requirement: String(mapped.requirement || '').trim(),
+      source: String(mapped.source || 'Excel Import').trim(),
+      expectedValue: mapped.expectedValue === '' || mapped.expectedValue === undefined || !Number.isFinite(Number(mapped.expectedValue))
+        ? undefined
+        : Number(mapped.expectedValue)
     };
+  }
+
+  private suggestMapping(columns: string[]) {
+    const aliases: Record<string, string[]> = {
+      organization: ['organization', 'company name', 'company', 'school', 'institution', 'client'],
+      contactName: ['contact person', 'contact name', 'name', 'person'],
+      phone: ['phone', 'mobile', 'phone number', 'contact number'],
+      whatsapp: ['whatsapp', 'whatsapp number'],
+      email: ['email', 'email address'],
+      city: ['city', 'location'],
+      state: ['state', 'region'],
+      requirement: ['requirement', 'product interest', 'interest', 'product', 'notes'],
+      expectedValue: ['budget', 'expected value', 'deal value', 'value'],
+      source: ['source', 'lead source']
+    };
+    return columns.reduce<Record<string, string>>((result, column) => {
+      const normalized = column.trim().toLowerCase();
+      const field = Object.entries(aliases).find(([, names]) => names.includes(normalized))?.[0] || '';
+      result[column] = field;
+      return result;
+    }, {});
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -18,7 +18,17 @@ export class ImportsController {
 
   @Post('preview')
   @UseInterceptors(FileInterceptor('file'))
-  preview(@UploadedFile() file: Express.Multer.File) { return this.imports.preview(file); }
+  preview(@UploadedFile() file: Express.Multer.File, @Body() body: { mapping?: string }) {
+    let mapping: Record<string, string> | undefined;
+    if (body.mapping) {
+      try {
+        mapping = JSON.parse(body.mapping);
+      } catch {
+        throw new BadRequestException('Column mapping must be valid JSON');
+      }
+    }
+    return this.imports.preview(file, mapping);
+  }
 
   @Post('commit')
   commit(@Body() dto: CommitImportDto, @CurrentUser() user: any) { return this.imports.commit(dto, user); }

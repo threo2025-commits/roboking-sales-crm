@@ -16,7 +16,10 @@ export class ReportsController {
   available() { return this.reports.available(); }
 
   @Get('overview')
-  overview(@CurrentUser() user: any) { return this.reports.overview(user); }
+  overview(
+    @CurrentUser() user: any,
+    @Query() filters: { dateFrom?: string; dateTo?: string; employeeId?: string; source?: string; status?: string; productInterest?: string; region?: string }
+  ) { return this.reports.overview(user, filters); }
 
   @Get('monthly-export')
   @Roles(Role.OWNER, Role.MANAGER)

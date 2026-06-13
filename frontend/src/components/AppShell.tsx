@@ -8,26 +8,27 @@ import { api } from '@/lib/api';
 
 const allNav = [
   ['Dashboard', '/dashboard'],
-  ['Leads', '/leads'],
+  ['Sales Pipeline', '/leads/pipeline'],
   ['Clients', '/clients'],
-  ['Deals', '/deals'],
-  ['Follow-ups', '/followups'],
-  ['Notifications', '/notifications'],
   ['Communications', '/communications'],
-  ['Internal Chat', '/chat'],
-  ['Tasks', '/tasks'],
-  ['Imports', '/imports'],
-  ['Team', '/team'],
+  ['Tasks / Follow-ups', '/followups'],
   ['Reports', '/reports'],
-  ['Audit Logs', '/audit'],
+  ['Team', '/team'],
   ['Settings', '/settings'],
-  ['Profile', '/profile']
 ];
 
-const restrictedForEmployee = new Set(['Team', 'Audit Logs', 'Settings', 'Templates']);
-const restrictedForPa = new Set(['Team', 'Audit Logs', 'Settings', 'Templates']);
+const restrictedForEmployee = new Set(['Team', 'Settings']);
+const restrictedForPa = new Set(['Team', 'Settings']);
 
 type StoredUser = { name: string; role: string; loginId: string } | null;
+
+function navMatches(label: string, href: string, pathname: string) {
+  if (label === 'Sales Pipeline') return ['/leads', '/deals', '/imports'].some((route) => pathname.startsWith(route));
+  if (label === 'Communications') return ['/communications', '/chat', '/inbox'].some((route) => pathname.startsWith(route));
+  if (label === 'Tasks / Follow-ups') return ['/followups', '/tasks', '/calendar'].some((route) => pathname.startsWith(route));
+  if (label === 'Settings') return ['/settings', '/audit', '/control-access', '/templates'].some((route) => pathname.startsWith(route));
+  return pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -67,13 +68,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [menuOpen]);
 
   const nav = useMemo(() => {
-    if (!user) return allNav;
+    if (!user) return allNav.filter(([label]) => !restrictedForEmployee.has(label));
     if (user.role === 'EMPLOYEE') return allNav.filter(([label]) => !restrictedForEmployee.has(label));
     if (user.role === 'PA_ADMIN_ASSISTANT') return allNav.filter(([label]) => !restrictedForPa.has(label));
     return allNav;
   }, [user]);
 
-  const pageTitle = nav.find(([, href]) => pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`)))?.[0] || 'RoboKing CRM';
+  const pageTitle = nav.find(([label, href]) => navMatches(label, href, pathname))?.[0] || 'RoboKing CRM';
 
   async function logout() {
     try {
@@ -104,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-4 lg:px-4">
         {nav.map(([label, href]) => {
-          const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
+          const active = navMatches(label, href, pathname);
           return (
             <Link
               key={label}
@@ -159,14 +160,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="truncate text-sm font-bold sm:text-base lg:hidden">{pageTitle}</div>
                 <input
                   className="hidden w-full max-w-[420px] rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm outline-none placeholder:text-slate-300 lg:block"
-                  placeholder="Search leads, clients, deals..."
+                  placeholder="Search opportunities, clients, activity..."
                 />
               </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
               <Link href="/leads" className="rounded-lg bg-brandGold px-3 py-2.5 text-sm font-bold text-slate-950 sm:px-4">
-                <span className="sm:hidden">+ Lead</span><span className="hidden sm:inline">+ Add Lead</span>
+                <span className="sm:hidden">+ New</span><span className="hidden sm:inline">+ Add Opportunity</span>
               </Link>
               <Link href="/imports" className="hidden rounded-lg border border-white/20 px-3 py-2.5 text-sm sm:inline-block">Import</Link>
               <Link href="/communications" className="hidden rounded-lg border border-white/20 px-3 py-2.5 text-sm md:inline-block">Communicate</Link>

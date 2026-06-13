@@ -127,9 +127,28 @@ export class LeadsService {
       include: {
         assignedTo: { select: { id: true, name: true, role: true } },
         createdBy: { select: { id: true, name: true, role: true } },
-        callLogs: { select: { createdAt: true }, orderBy: { createdAt: 'desc' }, take: 1 },
-        emailMessages: { select: { createdAt: true }, orderBy: { createdAt: 'desc' }, take: 1 },
-        whatsappLogs: { select: { createdAt: true }, orderBy: { createdAt: 'desc' }, take: 1 }
+        client: { select: { id: true, organization: true } },
+        deals: { select: { id: true, title: true, stage: true, expectedValue: true, probability: true, updatedAt: true }, orderBy: { updatedAt: 'desc' }, take: 1 },
+        activities: {
+          select: { type: true, summary: true, details: true, createdAt: true, user: { select: { id: true, name: true, role: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        },
+        callLogs: {
+          select: { createdAt: true, status: true, productInterest: true, budgetDiscussed: true, summary: true, employee: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        },
+        emailMessages: {
+          select: { createdAt: true, sentAt: true, subject: true, senderUser: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        },
+        whatsappLogs: {
+          select: { createdAt: true, message: true, employee: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
       },
       orderBy: [{ deletedAt: 'desc' }, { createdAt: 'desc' }],
       take: 200
@@ -146,7 +165,14 @@ export class LeadsService {
         createdBy: { select: { id: true, name: true, loginId: true, role: true } },
         client: true,
         deals: true,
-        followups: { orderBy: { dueAt: 'asc' } },
+        followups: { include: { assignedTo: { select: { id: true, name: true, role: true } } }, orderBy: { dueAt: 'asc' } },
+        tasks: {
+          include: {
+            assignedTo: { select: { id: true, name: true, role: true } },
+            createdBy: { select: { id: true, name: true, role: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
         activities: { include: { user: { select: { id: true, name: true, role: true } } }, orderBy: { createdAt: 'desc' }, take: 50 },
         assignmentHistory: {
           include: {
@@ -240,6 +266,26 @@ export class LeadsService {
       notes: dto.note
     });
     return updated;
+  }
+
+  async addNote(id: string, note: string, user: AuthUser, meta?: RequestMeta) {
+    const text = note?.trim();
+    if (!text) throw new BadRequestException('Note is required');
+    const existing = await this.prisma.lead.findUnique({ where: { id } });
+    if (!existing || existing.deletedAt) throw new NotFoundException('Lead not found');
+    if (!this.unrestricted(user) && existing.assignedToId !== user.sub && existing.createdById !== user.sub) {
+      throw new ForbiddenException('Permission denied');
+    }
+    const activity = await this.prisma.activity.create({
+      data: { type: 'NOTE', summary: 'Note added', details: text, userId: user.sub, leadId: id }
+    });
+    await this.audit(user, meta, {
+      action: 'ADD_LEAD_NOTE',
+      entityId: id,
+      entityName: existing.organization,
+      notes: text
+    });
+    return activity;
   }
 
   async softDelete(id: string, user: AuthUser, meta?: RequestMeta) {

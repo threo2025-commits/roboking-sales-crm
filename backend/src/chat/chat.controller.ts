@@ -17,6 +17,9 @@ export class ChatController {
   @Get('conversations/:id/messages')
   messages(@Param('id') id: string, @CurrentUser() user: any) { return this.chat.messages(id, user); }
 
+  @Post('conversations/:id/read')
+  markRead(@Param('id') id: string, @CurrentUser() user: any) { return this.chat.markRead(id, user); }
+
   @Post('groups')
   @Roles(Role.OWNER, Role.MANAGER)
   createGroup(@Body() body: { title: string; memberIds: string[]; linkedLeadId?: string; linkedDealId?: string }, @CurrentUser() user: any) {

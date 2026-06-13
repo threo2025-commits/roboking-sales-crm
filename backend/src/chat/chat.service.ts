@@ -14,17 +14,30 @@ export class ChatService {
     return setting?.value === 'true';
   }
 
-  conversations(user: { sub: string; role: string }) {
+  async conversations(user: { sub: string; role: string }) {
     const unrestricted = this.isUnrestricted(user);
-    return this.prisma.chatConversation.findMany({
+    const conversations = await this.prisma.chatConversation.findMany({
       where: unrestricted ? {} : { members: { some: { userId: user.sub } } },
       include: {
         members: { include: { user: { select: { id: true, name: true, loginId: true, role: true } } } },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 }
+        messages: { include: { sender: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 1 }
       },
       orderBy: { updatedAt: 'desc' },
       take: 100
     });
+    return Promise.all(conversations.map(async (conversation) => {
+      const membership = conversation.members.find((member) => member.userId === user.sub);
+      const unreadCount = membership
+        ? await this.prisma.chatMessage.count({
+            where: {
+              conversationId: conversation.id,
+              senderId: { not: user.sub },
+              ...(membership.lastReadAt ? { createdAt: { gt: membership.lastReadAt } } : {})
+            }
+          })
+        : 0;
+      return { ...conversation, unreadCount };
+    }));
   }
 
   async assertCanAccessConversation(conversationId: string, user: { sub: string; role: string }) {
@@ -38,18 +51,44 @@ export class ChatService {
 
   async messages(conversationId: string, user: { sub: string; role: string }) {
     await this.assertCanAccessConversation(conversationId, user);
-    return this.prisma.chatMessage.findMany({
+    const [messages, members] = await Promise.all([
+      this.prisma.chatMessage.findMany({
       where: { conversationId },
       include: { sender: { select: { id: true, name: true, loginId: true, role: true } } },
       orderBy: { createdAt: 'asc' },
       take: 300
+      }),
+      this.prisma.chatMember.findMany({
+        where: { conversationId },
+        select: { userId: true, lastReadAt: true, user: { select: { id: true, name: true } } }
+      })
+    ]);
+    return messages.map((message) => ({
+      ...message,
+      seenBy: members
+        .filter((member) => member.userId !== message.senderId && member.lastReadAt && member.lastReadAt >= message.createdAt)
+        .map((member) => member.user)
+    }));
+  }
+
+  async markRead(conversationId: string, user: { sub: string; role: string }) {
+    await this.assertCanAccessConversation(conversationId, user);
+    const member = await this.prisma.chatMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId: user.sub } }
     });
+    if (!member) return { ok: true };
+    await this.prisma.chatMember.update({ where: { id: member.id }, data: { lastReadAt: new Date() } });
+    return { ok: true };
   }
 
   async createGroup(title: string, createdById: string, memberIds: string[], linkedLeadId?: string, linkedDealId?: string) {
     const conversation = await this.prisma.chatConversation.create({ data: { title, isGroup: true, createdById, linkedLeadId, linkedDealId } });
     await this.prisma.chatMember.createMany({
-      data: Array.from(new Set([createdById, ...memberIds])).map((userId) => ({ conversationId: conversation.id, userId })),
+      data: Array.from(new Set([createdById, ...memberIds])).map((userId) => ({
+        conversationId: conversation.id,
+        userId,
+        lastReadAt: userId === createdById ? new Date() : undefined
+      })),
       skipDuplicates: true
     });
     return conversation;
@@ -78,7 +117,11 @@ export class ChatService {
 
     const conversation = await this.prisma.chatConversation.create({ data: { title: null, isGroup: false, createdById: user.sub } });
     await this.prisma.chatMember.createMany({
-      data: [user.sub, memberId].map((userId) => ({ conversationId: conversation.id, userId })),
+      data: [user.sub, memberId].map((userId) => ({
+        conversationId: conversation.id,
+        userId,
+        lastReadAt: userId === user.sub ? new Date() : undefined
+      })),
       skipDuplicates: true
     });
     return conversation;

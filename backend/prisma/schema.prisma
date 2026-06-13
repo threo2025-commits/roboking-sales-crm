@@ -504,6 +504,7 @@ model ChatMember {
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   userId         String
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime?
   createdAt      DateTime         @default(now())
 
   @@unique([conversationId, userId])

@@ -4,9 +4,17 @@ import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { KpiCard } from '@/components/KpiCard';
 import { StatusBadge } from '@/components/StatusBadge';
+import { DashboardWidgetGrid } from '@/components/DashboardWidgetGrid';
 import { api } from '@/lib/api';
 
-const stageLabels = ['NEW_LEAD', 'CONTACTED', 'STARTED', 'IN_PROGRESS', 'QUOTATION_SENT', 'NEGOTIATION', 'CONVERTED'];
+const stageGroups = [
+  { label: 'NEW LEAD', statuses: ['NEW_LEAD'] },
+  { label: 'CONTACTED / STARTED', statuses: ['CONTACTED', 'STARTED'] },
+  { label: 'INTERESTED', statuses: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'] },
+  { label: 'FOLLOW-UP LATER', statuses: ['FOLLOW_UP_LATER', 'ON_HOLD'] },
+  { label: 'CONVERTED / DEAL', statuses: ['CONVERTED'] },
+  { label: 'LOST / FAILED', statuses: ['LOST', 'INVALID_CONTACT'] }
+];
 
 type Summary = {
   totalLeads: number;
@@ -90,9 +98,9 @@ export default function DashboardPage() {
   const canManageSettings = user?.role === 'OWNER' || user?.role === 'MANAGER';
 
   const stageCounts = useMemo(() => {
-    return stageLabels.map((stage) => ({
-      stage,
-      count: leads.filter((lead) => lead.status === stage).length
+    return stageGroups.map((group) => ({
+      stage: group.label,
+      count: leads.filter((lead) => group.statuses.includes(lead.status)).length
     }));
   }, [leads]);
 
@@ -147,11 +155,11 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold text-slate-950">Pipeline Snapshot</h2>
               <p className="mt-1 text-sm text-slate-500">Lead movement by current sales stage.</p>
             </div>
-            <Link href="/deals" className="text-sm font-semibold text-brandGoldDark">
-              View deals
+            <Link href="/leads/pipeline" className="text-sm font-semibold text-brandGoldDark">
+              Open pipeline
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
             {stageCounts.map(({ stage, count }) => (
               <div key={stage} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <div className="min-h-8 text-xs font-semibold text-slate-500">{formatStage(stage)}</div>
@@ -186,16 +194,12 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {canManageSettings && <section className="card mt-6 p-4 sm:p-6">
+      {canManageSettings && <section className="mt-6">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-          <div><h2 className="text-xl font-bold text-slate-950">Sales Analytics</h2><p className="mt-1 text-sm text-slate-500">Conversion, source quality, communication volume, and recent activity.</p></div>
+          <div><h2 className="text-xl font-bold text-slate-950">Management Widgets</h2><p className="mt-1 text-sm text-slate-500">Drag widgets to arrange this dashboard. Your layout is saved on this device.</p></div>
           <Link href="/reports" className="text-sm font-bold text-brandGoldDark">Open full reports</Link>
         </div>
-        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
-          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Lead Conversion</div><div className="mt-2 text-3xl font-bold">{analytics?.conversionRate ?? 0}%</div><div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, analytics?.conversionRate || 0)}%` }} /></div></div>
-          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Communication Activity</div><div className="mt-4 grid grid-cols-3 gap-2 text-center"><div><b className="text-xl">{analytics?.communicationSummary?.calls ?? 0}</b><p className="text-xs text-slate-500">Calls</p></div><div><b className="text-xl">{analytics?.communicationSummary?.emails ?? 0}</b><p className="text-xs text-slate-500">Emails</p></div><div><b className="text-xl">{analytics?.communicationSummary?.whatsapp ?? 0}</b><p className="text-xs text-slate-500">WhatsApp</p></div></div></div>
-          <div className="rounded-xl border p-4"><div className="text-sm font-semibold text-slate-500">Top Lead Sources</div><div className="mt-3 space-y-2">{analytics?.leadSource?.slice(0, 3).map((source: any) => <div key={source.source} className="flex items-center justify-between gap-3 text-sm"><span className="truncate">{source.source}</span><b>{source.conversionRate}%</b></div>)}{!analytics?.leadSource?.length && <p className="text-sm text-slate-500">No source data yet.</p>}</div></div>
-        </div>
+        <div className="mt-5"><DashboardWidgetGrid analytics={analytics} summary={summary} /></div>
       </section>}
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -205,8 +209,8 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold text-slate-950">Recent Leads & Clients</h2>
               <p className="mt-1 text-sm text-slate-500">Latest visible sales records for your role.</p>
             </div>
-            <Link href="/leads" className="text-sm font-semibold text-brandGoldDark">
-              Open leads
+            <Link href="/leads/pipeline" className="text-sm font-semibold text-brandGoldDark">
+              Open pipeline
             </Link>
           </div>
           <div className="overflow-x-auto">

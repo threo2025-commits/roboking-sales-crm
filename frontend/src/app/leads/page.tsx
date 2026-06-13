@@ -83,12 +83,13 @@ export default function LeadsPage() {
   return (
     <AppShell>
       <PageHeader
-        title="My Leads"
+        title="Add Opportunity"
         subtitle={canDelete ? 'Owner/Manager can delete leads. Deleted leads stay visible here in red and are hidden from PA/Employee views.' : 'Create manual leads, view assigned clients, and catch duplicate contacts before they enter the system.'}
+        action={<Link href="/leads/pipeline" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Back to Pipeline</Link>}
       />
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         <form onSubmit={createLead} className="card p-4 sm:p-6">
-          <h2 className="text-xl font-bold">Add Manual Lead</h2>
+          <h2 className="text-xl font-bold">New Opportunity</h2>
           <p className="mt-1 text-sm text-slate-500">Employee-created leads are visible to Owner/Manager immediately.</p>
           <div className="mt-5 space-y-3">
             <input required placeholder="Organization / School / Company" value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })} className="w-full rounded-xl border px-4 py-3 text-sm" />

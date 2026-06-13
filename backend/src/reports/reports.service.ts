@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 
 type AuthUser = { sub: string; role: Role };
+type ReportFilters = { dateFrom?: string; dateTo?: string; employeeId?: string; source?: string; status?: string; productInterest?: string; region?: string };
 
 function monthKey(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`;
@@ -22,10 +23,40 @@ export class ReportsService {
   private dealScope(user: AuthUser) { return this.isFullAccess(user) ? {} : { assignedToId: user.sub }; }
   private followupScope(user: AuthUser) { return ['OWNER', 'MANAGER', 'PA_ADMIN_ASSISTANT'].includes(user.role) ? {} : { assignedToId: user.sub }; }
 
-  async overview(user: AuthUser) {
-    const leadWhere = this.leadScope(user) as any;
-    const dealWhere = this.dealScope(user) as any;
-    const followupWhere = this.followupScope(user) as any;
+  async overview(user: AuthUser, filters: ReportFilters = {}) {
+    const employeeId = this.isFullAccess(user) ? filters.employeeId : user.sub;
+    const dateRange = {
+      ...(filters.dateFrom ? { gte: new Date(`${filters.dateFrom}T00:00:00`) } : {}),
+      ...(filters.dateTo ? { lt: new Date(new Date(`${filters.dateTo}T00:00:00`).getTime() + 86400000) } : {})
+    };
+    const leadFilters: any = {
+      ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}),
+      ...(employeeId ? { assignedToId: employeeId } : {}),
+      ...(filters.source ? { source: filters.source } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.productInterest ? { requirement: { contains: filters.productInterest, mode: 'insensitive' } } : {}),
+      ...(filters.region ? { OR: [{ city: { contains: filters.region, mode: 'insensitive' } }, { state: { contains: filters.region, mode: 'insensitive' } }] } : {})
+    };
+    const leadScope = this.leadScope(user);
+    const leadWhere = { AND: [leadScope, leadFilters] } as any;
+    const dealWhere = {
+      AND: [
+        this.dealScope(user),
+        {
+          ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}),
+          ...(employeeId ? { assignedToId: employeeId } : {})
+        }
+      ]
+    } as any;
+    const followupWhere = {
+      AND: [
+        this.followupScope(user),
+        {
+          ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}),
+          ...(employeeId ? { assignedToId: employeeId } : {})
+        }
+      ]
+    } as any;
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5, 1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
@@ -46,20 +77,21 @@ export class ReportsService {
       this.prisma.activity.findMany({
         where: {
           createdAt: { gte: sixMonthsAgo },
-          ...(this.isFullAccess(user) ? {} : { userId: user.sub })
+          ...(employeeId ? { userId: employeeId } : {}),
+          ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {})
         },
         select: { type: true, userId: true, createdAt: true }
       }),
       this.prisma.callLog.findMany({
-        where: this.isFullAccess(user) ? {} : { employeeId: user.sub },
+        where: { ...(employeeId ? { employeeId } : {}), ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}) },
         select: { employeeId: true, createdAt: true }
       }),
       this.prisma.emailMessage.findMany({
-        where: this.isFullAccess(user) ? { direction: 'OUTBOUND' } : { direction: 'OUTBOUND', senderUserId: user.sub },
+        where: { direction: 'OUTBOUND', ...(employeeId ? { senderUserId: employeeId } : {}), ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}) },
         select: { senderUserId: true, createdAt: true }
       }),
       this.prisma.whatsappLog.findMany({
-        where: this.isFullAccess(user) ? {} : { employeeId: user.sub },
+        where: { ...(employeeId ? { employeeId } : {}), ...(Object.keys(dateRange).length ? { createdAt: dateRange } : {}) },
         select: { employeeId: true, createdAt: true }
       }),
       this.prisma.excelImport.findMany({
@@ -69,7 +101,7 @@ export class ReportsService {
         include: { uploadedBy: { select: { name: true, loginId: true } } }
       }),
       this.prisma.user.findMany({
-        where: this.isFullAccess(user) ? { status: 'ACTIVE' } : { id: user.sub },
+        where: this.isFullAccess(user) ? { status: 'ACTIVE', ...(employeeId ? { id: employeeId } : {}) } : { id: user.sub },
         select: { id: true, name: true, role: true }
       })
     ]);
@@ -122,7 +154,12 @@ export class ReportsService {
     });
 
     const lostAudit = await this.prisma.auditLog.findMany({
-      where: { entity: 'Lead', action: 'UPDATE_LEAD_STAGE', afterState: { path: ['status'], equals: 'LOST' } },
+      where: {
+        entity: 'Lead',
+        entityId: { in: leads.map((lead) => lead.id) },
+        action: 'UPDATE_LEAD_STAGE',
+        afterState: { path: ['status'], equals: 'LOST' }
+      },
       select: { notes: true }
     });
     const lostReasons = Array.from(lostAudit.reduce((map, row) => {
@@ -154,6 +191,11 @@ export class ReportsService {
         mrr: null,
         arr: null,
         unavailableReason: 'Insufficient cost, recurring revenue, and multi-year revenue data'
+      },
+      filters: {
+        employees: users,
+        sources: Array.from(new Set(leads.map((lead) => lead.source).filter(Boolean))),
+        applied: filters
       }
     };
   }

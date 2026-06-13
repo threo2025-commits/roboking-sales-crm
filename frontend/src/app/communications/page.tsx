@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { PageHeader } from '@/components/PageHeader';
+import { FileDropzone } from '@/components/FileDropzone';
 import { api } from '@/lib/api';
 
 function renderTemplate(text: string, vars: Record<string, string>) {
@@ -14,7 +15,6 @@ function renderTemplate(text: string, vars: Record<string, string>) {
 export default function CommunicationsPage() {
   const [leads, setLeads] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
-  const [deals, setDeals] = useState<any[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
   const [whatsappTemplates, setWhatsappTemplates] = useState<any[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState('');
@@ -36,7 +36,6 @@ export default function CommunicationsPage() {
     try {
       setLeads(await api<any[]>('/leads'));
       setClients(await api<any[]>('/clients'));
-      setDeals(await api<any[]>('/deals'));
       setEmailTemplates(await api<any[]>('/email/templates'));
       setWhatsappTemplates(await api<any[]>('/whatsapp/templates'));
       try {
@@ -49,10 +48,25 @@ export default function CommunicationsPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!leads.length || typeof window === 'undefined') return;
+    const leadId = new URLSearchParams(window.location.search).get('leadId');
+    const lead = leads.find((item) => item.id === leadId);
+    if (!lead || lead.id === selectedLeadId) return;
+    setSelectedLeadId(lead.id);
+    setSelectedDealId(lead.deals?.[0]?.id || '');
+    setPhone((lead.whatsapp || lead.phone || '').replace(/[^0-9]/g, ''));
+    setContactName(lead.contactName || 'there');
+    setOrganization(lead.organization || '');
+    setEmail((current) => ({ ...current, toEmail: lead.email || current.toEmail }));
+    setCallLog((current: any) => ({ ...current, phone: lead.phone || current.phone, clientName: lead.organization }));
+  }, [leads, selectedLeadId]);
+
   function applyLead(id: string) {
     setSelectedLeadId(id);
     const lead = leads.find((l) => l.id === id);
     if (!lead) return;
+    setSelectedDealId(lead.deals?.[0]?.id || '');
     setPhone((lead.whatsapp || lead.phone || '').replace(/[^0-9]/g, ''));
     setContactName(lead.contactName || 'there');
     setOrganization(lead.organization || '');
@@ -70,21 +84,6 @@ export default function CommunicationsPage() {
     setOrganization(client.organization || organization);
     setEmail((prev) => ({ ...prev, toEmail: contact?.email || prev.toEmail }));
     setCallLog((prev: any) => ({ ...prev, phone: contact?.phone || prev.phone, clientName: client.organization }));
-  }
-
-  function applyDeal(id: string) {
-    setSelectedDealId(id);
-    const deal = deals.find((d) => d.id === id);
-    if (!deal) return;
-    const lead = deal.lead;
-    const client = deal.client;
-    if (lead?.id) setSelectedLeadId(lead.id);
-    if (client?.id) setSelectedClientId(client.id);
-    setPhone((lead?.whatsapp || lead?.phone || phone).replace(/[^0-9]/g, ''));
-    setContactName(lead?.contactName || contactName);
-    setOrganization(lead?.organization || client?.organization || organization);
-    setEmail((prev) => ({ ...prev, toEmail: lead?.email || prev.toEmail }));
-    setCallLog((prev: any) => ({ ...prev, phone: lead?.phone || prev.phone, clientName: lead?.organization || client?.organization || prev.clientName }));
   }
 
   function applyWhatsappTemplate(id: string) {
@@ -137,24 +136,22 @@ export default function CommunicationsPage() {
     <AppShell>
       <PageHeader title="Communications" subtitle="Call, WhatsApp, email, and manual client conversation entry from one screen." />
       <div className="mb-5 flex flex-wrap gap-2">
+        <Link href="/chat" className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white">Team Chat</Link>
         <Link href="/inbox" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Email Inbox</Link>
         {['OWNER', 'MANAGER'].includes(role) && <Link href="/templates" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Message Templates</Link>}
       </div>
       <section className="card mb-5 p-4 sm:mb-6 sm:p-6">
         <h2 className="text-xl font-bold">Select Communication Context</h2>
-        <p className="mt-1 text-sm text-slate-500">Link calls to a lead, client, or deal. Selecting an item auto-fills contact details where available.</p>
+        <p className="mt-1 text-sm text-slate-500">Choose an opportunity or existing client. Linked deal details are attached automatically after conversion.</p>
         <select value={selectedLeadId} onChange={(e) => applyLead(e.target.value)} className="mt-4 w-full rounded-xl border px-4 py-3 text-sm">
-          <option value="">No linked lead</option>
+          <option value="">No linked opportunity</option>
           {leads.map((l) => <option key={l.id} value={l.id}>{l.organization} - {l.contactName || 'No contact'} - {l.phone || l.email || 'No contact detail'}</option>)}
         </select>
         <select value={selectedClientId} onChange={(e) => applyClient(e.target.value)} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
           <option value="">No linked client</option>
           {clients.map((c) => <option key={c.id} value={c.id}>{c.organization} - {c.contacts?.[0]?.phone || c.contacts?.[0]?.email || 'No contact detail'}</option>)}
         </select>
-        <select value={selectedDealId} onChange={(e) => applyDeal(e.target.value)} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm">
-          <option value="">No linked deal</option>
-          {deals.map((d) => <option key={d.id} value={d.id}>{d.title} - {d.stage?.replaceAll('_', ' ')}</option>)}
-        </select>
+        {selectedDealId && <div className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Linked deal context is active for this opportunity.</div>}
       </section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 xl:gap-6">
@@ -176,7 +173,7 @@ export default function CommunicationsPage() {
           <input value={email.toEmail} onChange={(e) => setEmail({ ...email, toEmail: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="To" />
           <input value={email.subject} onChange={(e) => setEmail({ ...email, subject: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Subject" />
           <textarea value={email.bodyHtml} onChange={(e) => setEmail({ ...email, bodyHtml: e.target.value })} className="mt-3 h-32 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Body" />
-          <input type="file" multiple onChange={(e) => setAttachments(Array.from(e.target.files || []))} className="mt-3 block w-full min-w-0 rounded-xl border px-3 py-3 text-sm" />
+          <div className="mt-3"><FileDropzone label="Drag attachments here or click to upload" hint="Multiple common document/image files, up to 50MB each" multiple maxBytes={50 * 1024 * 1024} files={attachments} onFiles={setAttachments} /></div>
           <button onClick={sendEmail} className="mt-3 w-full rounded-xl bg-brandGold py-3 font-bold text-slate-950">Send Email</button>
         </section>
 
@@ -190,7 +187,7 @@ export default function CommunicationsPage() {
           <input value={callLog.budgetDiscussed} onChange={(e) => setCallLog({ ...callLog, budgetDiscussed: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Budget discussed" />
           <input value={callLog.productInterest} onChange={(e) => setCallLog({ ...callLog, productInterest: e.target.value })} className="mt-3 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Product interest" />
           <textarea value={callLog.summary} onChange={(e) => setCallLog({ ...callLog, summary: e.target.value })} className="mt-3 h-20 w-full rounded-xl border px-4 py-3 text-sm" placeholder="Call summary" />
-          <input type="file" onChange={(e) => setRecording(e.target.files?.[0] || null)} className="mt-3 block w-full min-w-0 rounded-xl border px-3 py-3 text-sm" />
+          <div className="mt-3"><FileDropzone label="Drag call recording here or click to upload" hint="Required: mp3, m4a, wav, aac, ogg, amr, mp4, webm, or 3gp; maximum 50MB" accept=".mp3,.m4a,.wav,.aac,.ogg,.amr,.mp4,.webm,.3gp" maxBytes={50 * 1024 * 1024} files={recording ? [recording] : []} onFiles={(files) => setRecording(files[0] || null)} /></div>
           <button onClick={saveCallLog} className="mt-3 w-full rounded-xl bg-slate-950 py-3 font-bold text-white">Save Call Log</button>
         </section>
       </div>

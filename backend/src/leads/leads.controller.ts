@@ -40,6 +40,11 @@ export class LeadsController {
     return this.leads.updateStage(id, dto, user, meta);
   }
 
+  @Post(':id/notes')
+  addNote(@Param('id') id: string, @Body() body: { note: string }, @CurrentUser() user: any, @CurrentRequestMeta() meta: RequestMeta) {
+    return this.leads.addNote(id, body.note, user, meta);
+  }
+
   @Delete(':id')
   @Roles(Role.OWNER, Role.MANAGER)
   delete(@Param('id') id: string, @CurrentUser() user: any, @CurrentRequestMeta() meta: RequestMeta) {

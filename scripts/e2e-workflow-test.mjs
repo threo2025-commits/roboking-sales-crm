@@ -179,6 +179,16 @@ async function main() {
     stagedLead.data.status === 'STARTED' &&
     stagedLead.data.auditLogs.some((log) => log.action === 'UPDATE_LEAD_STAGE' && log.beforeState?.status === 'NEW_LEAD' && log.afterState?.status === 'STARTED'));
 
+  await request(`/leads/${leadB.data.id}/notes`, {
+    token: empB.accessToken,
+    method: 'POST',
+    body: { note: 'E2E handling note' }
+  });
+  const leadWithNote = await request(`/leads/${leadB.data.id}`, { token: owner.accessToken });
+  record('Assigned employee can add a tracked opportunity note',
+    leadWithNote.data.activities.some((entry) => entry.details === 'E2E handling note') &&
+    leadWithNote.data.auditLogs.some((entry) => entry.action === 'ADD_LEAD_NOTE'));
+
   const empDeleteAttempt = await request(`/leads/${leadA.data.id}`, { token: empA.accessToken, method: 'DELETE', expected: [403] });
   await request(`/leads/${leadA.data.id}`, { token: owner.accessToken, method: 'DELETE' });
   const deletedOwnerView = await request('/leads', { token: owner.accessToken });
@@ -353,6 +363,22 @@ async function main() {
   record('Chat direct setting, group creation, and history access rules',
     directBlocked.status === 403 && !!directAllowed.data.id && !!group.data.id && paGroupCreate.status === 403 && !paConversations.data.some((c) => c.id === group.data.id) && ownerConversations.data.some((c) => c.id === group.data.id));
   record('Chat can link to lead/deal through API', group.data.linkedLeadId === leadB.data.id && group.data.linkedDealId === deal.data.id);
+
+  await request('/chat/messages', {
+    token: empA.accessToken,
+    method: 'POST',
+    body: { conversationId: directAllowed.data.id, body: `Unread test ${suffix}` }
+  });
+  const unreadConversations = await request('/chat/conversations', { token: empB.accessToken });
+  const unreadDirect = unreadConversations.data.find((conversation) => conversation.id === directAllowed.data.id);
+  await request(`/chat/conversations/${directAllowed.data.id}/messages`, { token: empB.accessToken });
+  await request(`/chat/conversations/${directAllowed.data.id}/read`, { token: empB.accessToken, method: 'POST', body: {} });
+  const readConversations = await request('/chat/conversations', { token: empB.accessToken });
+  const readDirect = readConversations.data.find((conversation) => conversation.id === directAllowed.data.id);
+  const receiptMessages = await request(`/chat/conversations/${directAllowed.data.id}/messages`, { token: empA.accessToken });
+  const receipt = receiptMessages.data.find((message) => message.body === `Unread test ${suffix}`);
+  record('Chat unread badge clears and sender receives seen state',
+    unreadDirect?.unreadCount > 0 && readDirect?.unreadCount === 0 && receipt?.seenBy?.some((member) => member.id === employeeB.data.id));
 
   const availableReports = await request('/reports/available', { token: owner.accessToken });
   const overviewReports = await request('/reports/overview', { token: owner.accessToken });

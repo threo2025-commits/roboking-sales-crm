@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AppShell } from '@/components/AppShell';
 import { PageHeader } from '@/components/PageHeader';
 import { api } from '@/lib/api';
@@ -31,6 +32,11 @@ export default function SettingsPage() {
 
   return <AppShell>
     <PageHeader title="Settings" subtitle="Restricted Owner/Manager controls for CRM permissions." />
+    <div className="mb-5 flex flex-wrap gap-2">
+      <Link href="/control-access" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Access Control</Link>
+      <Link href="/templates" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Message Templates</Link>
+      <Link href="/audit" className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold">Audit Logs</Link>
+    </div>
     <section className="card max-w-3xl p-4 sm:p-6">
       <h2 className="text-xl font-bold">Employee Direct Chat</h2>
       <p className="mt-1 text-sm text-slate-500">When disabled, employees cannot start direct employee-to-employee chats. Owner/Manager-created groups remain available.</p>
