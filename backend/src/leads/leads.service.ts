@@ -148,6 +148,12 @@ export class LeadsService {
           select: { createdAt: true, message: true, employee: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' },
           take: 1
+        },
+        followups: {
+          where: { status: 'PENDING' },
+          select: { id: true, title: true, notes: true, dueAt: true, status: true, assignedTo: { select: { id: true, name: true } } },
+          orderBy: { dueAt: 'asc' },
+          take: 1
         }
       },
       orderBy: [{ deletedAt: 'desc' }, { createdAt: 'desc' }],

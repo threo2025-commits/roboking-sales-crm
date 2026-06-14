@@ -4,22 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import { PageHeader } from '@/components/PageHeader';
+import { LeadProgress } from '@/components/LeadProgress';
 import { StatusBadge } from '@/components/StatusBadge';
 import { api } from '@/lib/api';
-
-const journey = [
-  { label: 'New / Created', statuses: ['NEW_LEAD'] },
-  { label: 'Started / Contacted', statuses: ['STARTED', 'CONTACTED'] },
-  { label: 'Interested', statuses: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'] },
-  { label: 'Follow-up Later', statuses: ['FOLLOW_UP_LATER', 'ON_HOLD'] },
-  { label: 'Converted / Deal', statuses: ['CONVERTED'] },
-  { label: 'Failed / Lost', statuses: ['LOST', 'INVALID_CONTACT'] }
-];
-
-function currentJourneyIndex(status: string) {
-  const index = journey.findIndex((step) => step.statuses.includes(status));
-  return index < 0 ? 0 : index;
-}
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString() : '-';
@@ -32,6 +19,10 @@ export default function LeadDetailPage() {
   const [msg, setMsg] = useState('');
   const [note, setNote] = useState('');
   const [followupAt, setFollowupAt] = useState('');
+  const [nextActionType, setNextActionType] = useState('CALL');
+  const [nextActionNote, setNextActionNote] = useState('');
+  const [nextActionAt, setNextActionAt] = useState('');
+  const [showAllTimeline, setShowAllTimeline] = useState(false);
   const [role, setRole] = useState('');
 
   const load = useCallback(async () => {
@@ -51,7 +42,6 @@ export default function LeadDetailPage() {
     } catch {}
   }, [params.id, load]);
 
-  const stepIndex = useMemo(() => currentJourneyIndex(lead?.status || 'NEW_LEAD'), [lead?.status]);
   const canManage = role === 'OWNER' || role === 'MANAGER';
   const lastCall = lead?.callLogs?.[0];
   const lastEmail = lead?.emailMessages?.[0];
@@ -148,6 +138,25 @@ export default function LeadDetailPage() {
       .filter((item) => item.at)
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
   }, [lead]);
+  const importantTimeline = useMemo(() => {
+    const importantTypes = new Set(['CREATED', 'ASSIGNMENT', 'CALL', 'EMAIL', 'WHATSAPP', 'FOLLOW_UP', 'STATUS']);
+    const seen = new Set<string>();
+    return timeline.filter((item: any) => {
+      const title = String(item.title || '').toLowerCase();
+      const important = importantTypes.has(item.type)
+        || title.includes('created')
+        || title.includes('converted')
+        || title.includes('reassign')
+        || title.includes('moved')
+        || title.includes('lost')
+        || title.includes('failed');
+      const key = `${item.type}-${title}-${String(item.at).slice(0, 16)}`;
+      if (!important || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [timeline]);
+  const displayedTimeline = showAllTimeline ? importantTimeline : importantTimeline.slice(0, 8);
 
   async function changeStage(status: string) {
     if (status === 'FOLLOW_UP_LATER' && !followupAt) {
@@ -178,9 +187,61 @@ export default function LeadDetailPage() {
     }
   }
 
+  async function scheduleNextAction() {
+    if (!nextActionAt || !nextActionNote.trim()) {
+      setMsg('Add the next communication details and due date.');
+      return;
+    }
+    const assignedToId = lead?.assignedToId || lead?.createdBy?.id;
+    if (!assignedToId) {
+      setMsg('Assign this lead to a team member before scheduling communication.');
+      return;
+    }
+    try {
+      await api('/followups', {
+        method: 'POST',
+        body: JSON.stringify({
+          leadId: lead.id,
+          assignedToId,
+          title: `${nextActionType}: ${nextActionNote.trim()}`,
+          dueAt: nextActionAt
+        })
+      });
+      await api(`/leads/${lead.id}`, { method: 'PATCH', body: JSON.stringify({ nextFollowupAt: nextActionAt }) });
+      setNextActionNote('');
+      setNextActionAt('');
+      setMsg('Next communication reminder scheduled.');
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    }
+  }
+
   async function download(fileId: string) {
     const res: any = await api(`/files/${fileId}/download-url`);
     window.open(res.url, '_blank');
+  }
+
+  async function openWhatsapp() {
+    const phone = String(lead?.whatsapp || lead?.phone || '');
+    if (!phone) {
+      setMsg('No WhatsApp or phone number is saved for this lead.');
+      return;
+    }
+    try {
+      const result: any = await api('/whatsapp/open-url', {
+        method: 'POST',
+        body: JSON.stringify({
+          phone,
+          message: `Hello ${lead.contactName || 'there'}, this is the RoboKing team following up regarding ${lead.organization}.`,
+          leadId: lead.id
+        })
+      });
+      window.open(result.url, '_blank');
+      await load();
+    } catch (error: any) {
+      setMsg(error.message);
+    }
   }
 
   return (
@@ -202,7 +263,7 @@ export default function LeadDetailPage() {
               </div>
               {!lead.deletedAt && <div className="flex flex-wrap gap-2">
                 <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Call</a>
-                <a href={(lead.whatsapp || lead.phone) ? `https://wa.me/${String(lead.whatsapp || lead.phone).replace(/[^0-9]/g, '')}` : '#'} target="_blank" rel="noreferrer" className="rounded-xl border px-4 py-2 text-sm font-bold">WhatsApp</a>
+                <button onClick={openWhatsapp} className="rounded-xl border px-4 py-2 text-sm font-bold">WhatsApp</button>
                 <Link href={`/communications?leadId=${lead.id}`} className="rounded-xl bg-brandGold px-4 py-2 text-sm font-bold text-slate-950">Email / Call Log</Link>
               </div>}
             </div>
@@ -218,16 +279,7 @@ export default function LeadDetailPage() {
               <div><h2 className="text-xl font-bold">Lead Journey</h2><p className="mt-1 text-sm text-slate-500">Every change is recorded with the person and time.</p></div>
               <StatusBadge status={lead.status} />
             </div>
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
-              {journey.map((step, index) => {
-                const current = index === stepIndex;
-                const completed = index < stepIndex && !['LOST', 'INVALID_CONTACT'].includes(lead.status);
-                return <div key={step.label} className={`relative rounded-xl border p-3 text-sm ${current ? 'border-brandGold bg-amber-50 font-bold text-slate-950' : completed ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
-                  <div className="text-xs font-bold uppercase">{completed ? 'Completed' : current ? 'Current' : 'Available'}</div>
-                  <div className="mt-1">{step.label}</div>
-                </div>;
-              })}
-            </div>
+            <div className="mt-5"><LeadProgress status={lead.status} /></div>
             <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_16rem]">
               <input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl border px-4 py-3 text-sm" placeholder="Optional status note or lost reason" />
               <input type="datetime-local" value={followupAt} onChange={(e) => setFollowupAt(e.target.value)} className="rounded-xl border px-4 py-3 text-sm" />
@@ -238,6 +290,44 @@ export default function LeadDetailPage() {
               <button onClick={() => changeStage('FOLLOW_UP_LATER')} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800">Schedule Follow-up Later</button>
               <button onClick={() => changeStage('CONVERTED')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white">Convert Lead</button>
               <button onClick={() => changeStage('LOST')} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Mark Failed / Lost</button>
+            </div>
+          </section>}
+
+          {!lead.deletedAt && <section className="card mt-5 p-4 sm:mt-6 sm:p-6">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.8fr)]">
+              <div>
+                <h2 className="text-xl font-bold">Next Communication</h2>
+                <p className="mt-1 text-sm text-slate-500">Make the next action clear for the assigned handler.</p>
+                {lead.followups?.filter((item: any) => item.status === 'PENDING').slice(0, 3).map((item: any) => {
+                  const overdue = new Date(item.dueAt).getTime() < Date.now();
+                  return <div key={item.id} className={`mt-3 rounded-lg border-l-4 p-4 ${overdue ? 'border-l-red-500 bg-red-50' : 'border-l-amber-400 bg-amber-50'}`}>
+                    <div className="flex flex-col justify-between gap-1 sm:flex-row">
+                      <b>{item.title}</b>
+                      <span className={`text-xs font-bold ${overdue ? 'text-red-700' : 'text-amber-800'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{formatDate(item.dueAt)} - {item.assignedTo?.name || lead.assignedTo?.name || 'Unassigned'}</p>
+                  </div>;
+                })}
+                {!lead.followups?.some((item: any) => item.status === 'PENDING') && <div className="mt-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-500">No next communication is scheduled.</div>}
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm font-bold">
+                  <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-lg bg-slate-950 px-3 py-3 text-white">Call</a>
+                  <button onClick={openWhatsapp} className="rounded-lg bg-emerald-600 px-3 py-3 text-white">WhatsApp</button>
+                  <Link href={`/communications?leadId=${lead.id}&mode=email`} className="rounded-lg bg-brandGold px-3 py-3 text-slate-950">Email</Link>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 className="font-bold">Schedule next action</h3>
+                <select value={nextActionType} onChange={(event) => setNextActionType(event.target.value)} className="mt-3 w-full rounded-lg border bg-white px-3 py-3 text-sm">
+                  <option value="CALL">Call client</option>
+                  <option value="WHATSAPP">Send WhatsApp</option>
+                  <option value="EMAIL">Send email</option>
+                  <option value="TEAM_MEMBER">Contact through team member</option>
+                  <option value="FOLLOW_UP">General follow-up</option>
+                </select>
+                <textarea value={nextActionNote} onChange={(event) => setNextActionNote(event.target.value)} placeholder="What needs to happen next?" className="mt-3 h-24 w-full rounded-lg border bg-white px-3 py-3 text-sm" />
+                <input type="datetime-local" value={nextActionAt} onChange={(event) => setNextActionAt(event.target.value)} className="mt-3 w-full rounded-lg border bg-white px-3 py-3 text-sm" />
+                <button onClick={scheduleNextAction} disabled={!nextActionNote.trim() || !nextActionAt} className="mt-3 w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Schedule reminder</button>
+              </div>
             </div>
           </section>}
 
@@ -269,11 +359,11 @@ export default function LeadDetailPage() {
 
           <section className="card mt-5 p-4 sm:mt-6 sm:p-6">
             <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-              <div><h2 className="text-xl font-bold">Activity Timeline</h2><p className="mt-1 text-sm text-slate-500">Calls, messages, assignments, follow-ups, tasks, notes, and journey changes in one place.</p></div>
-              <span className="text-sm font-semibold text-slate-500">{timeline.length} events</span>
+              <div><h2 className="text-xl font-bold">Important Activity</h2><p className="mt-1 text-sm text-slate-500">The key moments needed to understand this opportunity quickly.</p></div>
+              <span className="text-sm font-semibold text-slate-500">{importantTimeline.length} important events</span>
             </div>
             <div className="relative mt-6 space-y-4 before:absolute before:bottom-3 before:left-[15px] before:top-3 before:w-px before:bg-slate-200 sm:before:left-[19px]">
-              {timeline.map((item: any) => <article key={item.id} className="relative pl-11 sm:pl-14">
+              {displayedTimeline.map((item: any) => <article key={item.id} className="relative pl-11 sm:pl-14">
                 <div className="absolute left-0 top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-slate-950 text-[9px] font-bold text-white shadow-sm sm:h-10 sm:w-10">
                   {item.type.slice(0, 2)}
                 </div>
@@ -294,8 +384,11 @@ export default function LeadDetailPage() {
                   {canManage && (item.ipAddress || item.userAgent) && <div className="mt-3 break-all rounded-lg bg-slate-50 p-2 text-xs text-slate-500">IP: {item.ipAddress || '-'}<br />Agent: {item.userAgent || '-'}</div>}
                 </div>
               </article>)}
-              {!timeline.length && <p className="pl-11 text-sm text-slate-500 sm:pl-14">No activity yet.</p>}
+              {!importantTimeline.length && <p className="pl-11 text-sm text-slate-500 sm:pl-14">No important activity yet.</p>}
             </div>
+            {importantTimeline.length > 8 && <button onClick={() => setShowAllTimeline((value) => !value)} className="mt-5 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold">
+              {showAllTimeline ? 'Show recent activity only' : `Show all ${importantTimeline.length} important events`}
+            </button>}
           </section>
         </>
       )}

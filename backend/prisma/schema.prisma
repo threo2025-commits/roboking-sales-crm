@@ -488,6 +488,8 @@ model ChatConversation {
   id           String        @id @default(cuid())
   title        String?
   isGroup      Boolean       @default(false)
+  category     String?       @default("TEAM")
+  ownerId      String?
   linkedLeadId String?
   linkedDealId String?
   createdById  String
@@ -496,6 +498,9 @@ model ChatConversation {
 
   members      ChatMember[]
   messages     ChatMessage[]
+
+  @@index([category])
+  @@index([ownerId])
 }
 
 model ChatMember {

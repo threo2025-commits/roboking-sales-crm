@@ -364,6 +364,35 @@ async function main() {
     directBlocked.status === 403 && !!directAllowed.data.id && !!group.data.id && paGroupCreate.status === 403 && !paConversations.data.some((c) => c.id === group.data.id) && ownerConversations.data.some((c) => c.id === group.data.id));
   record('Chat can link to lead/deal through API', group.data.linkedLeadId === leadB.data.id && group.data.linkedDealId === deal.data.id);
 
+  const managedGroup = await request('/chat/groups', {
+    token: owner.accessToken,
+    method: 'POST',
+    body: { title: `Managed Project ${suffix}`, category: 'PROJECT', memberIds: [employeeA.data.id] }
+  });
+  await request(`/chat/groups/${managedGroup.data.id}/members`, {
+    token: manager.accessToken,
+    method: 'POST',
+    body: { memberIds: [employeeB.data.id] }
+  });
+  await request(`/chat/groups/${managedGroup.data.id}`, {
+    token: owner.accessToken,
+    method: 'PATCH',
+    body: { ownerId: employeeB.data.id, category: 'LEAD_DISCUSSION', title: `Lead Project ${suffix}` }
+  });
+  await request(`/chat/groups/${managedGroup.data.id}/members/${employeeA.data.id}`, {
+    token: manager.accessToken,
+    method: 'DELETE'
+  });
+  const managedBeforeDelete = await request('/chat/conversations', { token: owner.accessToken });
+  const managedConversation = managedBeforeDelete.data.find((conversation) => conversation.id === managedGroup.data.id);
+  const managedCorrectly = managedConversation?.ownerId === employeeB.data.id
+    && managedConversation?.category === 'LEAD_DISCUSSION'
+    && !managedConversation?.members.some((member) => member.userId === employeeA.data.id);
+  await request(`/chat/groups/${managedGroup.data.id}`, { token: owner.accessToken, method: 'DELETE' });
+  const managedAfterDelete = await request('/chat/conversations', { token: owner.accessToken });
+  record('Owner/Manager can manage group type, ownership, members, and deletion',
+    managedCorrectly && !managedAfterDelete.data.some((conversation) => conversation.id === managedGroup.data.id));
+
   await request('/chat/messages', {
     token: empA.accessToken,
     method: 'POST',

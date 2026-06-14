@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { LeadProgress, simpleLeadStages } from './LeadProgress';
 import { StageChangeModal } from './StageChangeModal';
 
 type Person = { id?: string; name: string; role?: string };
@@ -25,16 +26,21 @@ type Lead = {
   callLogs?: { status?: string; productInterest?: string; budgetDiscussed?: number | string; summary?: string; createdAt: string; employee?: Person }[];
   emailMessages?: { subject?: string; sentAt?: string; createdAt: string; senderUser?: Person }[];
   whatsappLogs?: { message?: string; createdAt: string; employee?: Person }[];
+  followups?: { id: string; title: string; notes?: string; dueAt: string; status: string; assignedTo?: Person }[];
 };
 
-const stages = [
-  { id: 'NEW_LEAD', label: 'New Lead', accepts: ['NEW_LEAD'], color: 'border-blue-400' },
-  { id: 'STARTED', label: 'Contacted / Started', accepts: ['CONTACTED', 'STARTED'], color: 'border-cyan-400' },
-  { id: 'IN_PROGRESS', label: 'Interested', accepts: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'], color: 'border-amber-400' },
-  { id: 'FOLLOW_UP_LATER', label: 'Follow-up Later', accepts: ['FOLLOW_UP_LATER', 'ON_HOLD'], color: 'border-violet-400' },
-  { id: 'CONVERTED', label: 'Converted / Deal', accepts: ['CONVERTED'], color: 'border-emerald-500' },
-  { id: 'LOST', label: 'Lost / Failed', accepts: ['LOST', 'INVALID_CONTACT'], color: 'border-red-400' }
-];
+const statusGroups: Record<string, string[]> = {
+  NEW_LEAD: ['NEW_LEAD'],
+  STARTED: ['CONTACTED', 'STARTED'],
+  IN_PROGRESS: ['IN_PROGRESS', 'REQUIREMENT_COLLECTED', 'DEMO_SCHEDULED', 'DEMO_COMPLETED', 'QUOTATION_SENT', 'NEGOTIATION', 'PAYMENT_PENDING'],
+  FOLLOW_UP_LATER: ['FOLLOW_UP_LATER', 'ON_HOLD'],
+  CONVERTED: ['CONVERTED'],
+  LOST: ['LOST', 'INVALID_CONTACT']
+};
+
+function simpleStage(status: string) {
+  return simpleLeadStages.find((stage) => statusGroups[stage.id]?.includes(status)) || simpleLeadStages[0];
+}
 
 function money(value?: number | string) {
   if (value === undefined || value === null || value === '') return '-';
@@ -53,12 +59,11 @@ function touch(lead: Lead) {
 
 export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
   const [leads, setLeads] = useState(initialLeads.filter((lead: any) => !lead.deletedAt));
-  const [draggedId, setDraggedId] = useState('');
-  const [overStage, setOverStage] = useState('');
   const [pending, setPending] = useState<{ lead: Lead; stage: string } | null>(null);
   const [quick, setQuick] = useState<{ lead: Lead; type: 'note' | 'followup' } | null>(null);
   const [quickText, setQuickText] = useState('');
   const [quickDate, setQuickDate] = useState('');
+  const [quickAction, setQuickAction] = useState('CALL');
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [handler, setHandler] = useState('');
@@ -77,14 +82,9 @@ export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
       return matchesSearch && matchesHandler && matchesDue;
     });
   }, [leads, search, handler, dueFilter]);
-  const grouped = useMemo(() => stages.map((stage) => ({
-    ...stage,
-    leads: visibleLeads.filter((lead) => stage.accepts.includes(lead.status))
-  })), [visibleLeads]);
-
   function requestMove(leadId: string, stage: string) {
     const lead = leads.find((item) => item.id === leadId);
-    if (!lead || stage === lead.status || stages.find((item) => item.id === stage)?.accepts.includes(lead.status)) return;
+    if (!lead || statusGroups[stage]?.includes(lead.status)) return;
     if (['FOLLOW_UP_LATER', 'LOST', 'CONVERTED'].includes(stage)) {
       setPending({ lead, stage });
       return;
@@ -105,7 +105,7 @@ export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
           : item.deals
       } : item));
       setPending(null);
-      setMessage(`${lead.organization} moved to ${stages.find((item) => item.id === stage)?.label}.`);
+      setMessage(`${lead.organization} moved to ${simpleLeadStages.find((item) => item.id === stage)?.label}.`);
     } catch (error: any) {
       setPending(null);
       setMessage(error.message || 'Could not move opportunity.');
@@ -116,6 +116,7 @@ export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
     setQuick({ lead, type });
     setQuickText('');
     setQuickDate('');
+    setQuickAction('CALL');
   }
 
   async function saveQuick() {
@@ -134,7 +135,7 @@ export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
           body: JSON.stringify({
             leadId: quick.lead.id,
             assignedToId: quick.lead.assignedTo?.id,
-            title: quickText,
+            title: `${quickAction}: ${quickText}`,
             dueAt: quickDate
           })
         });
@@ -163,82 +164,90 @@ export function LeadKanbanBoard({ initialLeads }: { initialLeads: Lead[] }) {
       <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-100 px-3 py-2 text-sm"><span className="text-slate-500">Visible</span><b>{visibleLeads.length}</b></div>
     </section>
     {message && <div className="mb-4 rounded-xl bg-slate-900 p-3 text-sm text-white">{message}</div>}
-    <div className="max-w-full overflow-x-auto pb-4">
-      <div className="grid min-w-[1780px] grid-cols-6 gap-4">
-        {grouped.map((stage) => <section
-          key={stage.id}
-          onDragOver={(event) => { event.preventDefault(); setOverStage(stage.id); }}
-          onDragLeave={() => setOverStage('')}
-          onDrop={(event) => {
-            event.preventDefault();
-            requestMove(event.dataTransfer.getData('text/lead-id') || draggedId, stage.id);
-            setOverStage('');
-          }}
-          className={`min-h-[560px] rounded-lg border border-slate-200 border-t-4 bg-slate-100 p-3 transition ${stage.color} ${overStage === stage.id ? 'ring-2 ring-brandGold ring-offset-2' : ''}`}
-        >
-          <header className="mb-3 flex items-center justify-between gap-3 px-1"><h2 className="font-bold">{stage.label}</h2><span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold shadow-sm">{stage.leads.length}</span></header>
-          <div className="space-y-3">
-            {stage.leads.map((lead) => {
-              const latest = touch(lead);
-              const deal = lead.deals?.[0];
-              const productInterest = lead.callLogs?.[0]?.productInterest || lead.requirement;
-              const value = deal?.expectedValue || lead.expectedValue || lead.callLogs?.[0]?.budgetDiscussed;
-              const overdue = lead.nextFollowupAt && new Date(lead.nextFollowupAt).getTime() < Date.now() && !['CONVERTED', 'LOST'].includes(lead.status);
-              const whatsapp = (lead.whatsapp || lead.phone || '').replace(/[^0-9]/g, '');
-              return <article
-                key={lead.id}
-                draggable
-                onDragStart={(event) => { setDraggedId(lead.id); event.dataTransfer.setData('text/lead-id', lead.id); event.dataTransfer.effectAllowed = 'move'; }}
-                onDragEnd={() => { setDraggedId(''); setOverStage(''); }}
-                className={`cursor-grab rounded-lg border bg-white p-4 shadow-sm transition hover:border-brandGold hover:shadow-md active:cursor-grabbing ${draggedId === lead.id ? 'opacity-50' : ''}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Link href={`/leads/${lead.id}`} className="min-w-0 break-words font-bold text-slate-950 hover:text-brandGoldDark">{lead.organization}</Link>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${lead.priority === 'URGENT' ? 'bg-red-100 text-red-700' : lead.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>{lead.priority}</span>
+    <div className="space-y-4">
+      {visibleLeads.map((lead) => {
+        const latest = touch(lead);
+        const deal = lead.deals?.[0];
+        const nextAction = lead.followups?.[0];
+        const productInterest = lead.callLogs?.[0]?.productInterest || lead.requirement;
+        const value = deal?.expectedValue || lead.expectedValue || lead.callLogs?.[0]?.budgetDiscussed;
+        const overdue = !!nextAction && new Date(nextAction.dueAt).getTime() < Date.now() && !['CONVERTED', 'LOST'].includes(lead.status);
+        const stage = simpleStage(lead.status);
+        const stateColor = ['LOST', 'INVALID_CONTACT'].includes(lead.status)
+          ? 'border-l-red-500'
+          : lead.status === 'CONVERTED'
+            ? 'border-l-emerald-500'
+            : 'border-l-amber-400';
+        return <article key={lead.id} className={`rounded-lg border border-l-4 border-slate-200 bg-white p-4 shadow-sm ${stateColor} sm:p-5`}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(16rem,0.8fr)_minmax(34rem,1.5fr)_minmax(16rem,0.8fr)] xl:items-center">
+            <div className="min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Link href={`/leads/${lead.id}`} className="break-words text-lg font-bold text-slate-950 hover:text-brandGoldDark">{lead.organization}</Link>
+                  <p className="mt-1 text-sm text-slate-500">{lead.contactName || 'No contact person'} - {lead.phone || lead.email || 'No contact detail'}</p>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{lead.contactName || 'No contact person'}</p>
-                {deal && <div className="mt-2 rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-bold text-emerald-800">Deal active: {deal.stage.replaceAll('_', ' ')}{deal.probability ? ` - ${deal.probability}%` : ''}</div>}
-                <div className="mt-3 space-y-1.5 text-xs text-slate-600">
-                  <p className="truncate">{lead.phone || lead.email || 'No contact detail'}</p>
-                  <p>Handler: <b>{lead.assignedTo?.name || 'Unassigned'}</b></p>
-                  <p>Source: {lead.source || '-'}</p>
-                  <p className="line-clamp-2">Interest: {productInterest || '-'}</p>
-                  <p>Expected value: {money(value)}</p>
-                  <p className={overdue ? 'font-bold text-red-600' : ''}>Follow-up: {lead.nextFollowupAt ? new Date(lead.nextFollowupAt).toLocaleString() : '-'}{overdue ? ' (Overdue)' : ''}</p>
-                </div>
-                <div className="mt-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-500">
-                  <span className="font-bold text-slate-700">{latest?.type || 'Activity'}:</span> {latest?.text || 'No activity yet'}
-                  {latest && <div className="mt-1">{latest.by || 'System'} - {new Date(latest.at).toLocaleString()}</div>}
-                </div>
-                <div className="mt-3 grid grid-cols-4 gap-1 text-center text-[11px] font-bold">
-                  <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-lg border px-1 py-2">Call</a>
-                  <a href={whatsapp ? `https://wa.me/${whatsapp}` : '#'} target="_blank" rel="noreferrer" className="rounded-lg border px-1 py-2">WhatsApp</a>
-                  <Link href={`/communications?leadId=${lead.id}&mode=email`} className="rounded-lg border px-1 py-2">Email</Link>
-                  <Link href={`/leads/${lead.id}`} className="rounded-lg bg-slate-950 px-1 py-2 text-white">Open</Link>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => openQuick(lead, 'note')} className="rounded-lg border px-2 py-2 text-xs font-bold">Add note</button>
-                  <button type="button" onClick={() => openQuick(lead, 'followup')} className="rounded-lg border px-2 py-2 text-xs font-bold">Follow-up</button>
-                </div>
-                <label className="mt-3 block text-xs font-bold text-slate-600 sm:hidden">
-                  Move to stage
-                  <select value={stage.id} onChange={(event) => requestMove(lead.id, event.target.value)} onClick={(event) => event.stopPropagation()} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900">
-                    {stages.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                  </select>
-                </label>
-              </article>;
-            })}
-            {!stage.leads.length && <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">Drop an opportunity here</div>}
+                <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${lead.priority === 'URGENT' ? 'bg-red-100 text-red-700' : lead.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>{lead.priority}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-600">
+                <p>Handler<br /><b className="text-slate-900">{lead.assignedTo?.name || 'Unassigned'}</b></p>
+                <p>Source<br /><b className="text-slate-900">{lead.source || '-'}</b></p>
+                <p>Interest<br /><b className="line-clamp-2 text-slate-900">{productInterest || '-'}</b></p>
+                <p>Value<br /><b className="text-slate-900">{money(value)}</b></p>
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-xs font-bold uppercase text-slate-500">Lead progress</span>
+                <select value={stage.id} onChange={(event) => requestMove(lead.id, event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold">
+                  {simpleLeadStages.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </div>
+              <LeadProgress status={lead.status} compact />
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className={`rounded-full px-2.5 py-1 font-bold ${overdue ? 'bg-red-100 text-red-700' : nextAction ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+                  {nextAction ? `${nextAction.title} - ${new Date(nextAction.dueAt).toLocaleString()}${overdue ? ' (Overdue)' : ''}` : 'No next communication scheduled'}
+                </span>
+                {deal && <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800">Deal active</span>}
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                <span className="font-bold text-slate-700">{latest?.type || 'Last activity'}:</span> {latest?.text || 'No activity yet'}
+                {latest && <div className="mt-1">{latest.by || 'System'} - {new Date(latest.at).toLocaleString()}</div>}
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-1 text-center text-[11px] font-bold">
+                <a href={lead.phone ? `tel:${lead.phone}` : '#'} className="rounded-lg border px-1 py-2">Call</a>
+                <Link href={`/communications?leadId=${lead.id}&mode=whatsapp`} className="rounded-lg border px-1 py-2">WhatsApp</Link>
+                <Link href={`/communications?leadId=${lead.id}&mode=email`} className="rounded-lg border px-1 py-2">Email</Link>
+                <Link href={`/leads/${lead.id}`} className="rounded-lg bg-slate-950 px-1 py-2 text-white">Open</Link>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => openQuick(lead, 'note')} className="rounded-lg border px-2 py-2 text-xs font-bold">Add note</button>
+                <button type="button" onClick={() => openQuick(lead, 'followup')} className="rounded-lg border px-2 py-2 text-xs font-bold">Next action</button>
+              </div>
+            </div>
           </div>
-        </section>)}
-      </div>
+        </article>;
+      })}
+      {!visibleLeads.length && <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">No opportunities match these filters.</div>}
     </div>
     <StageChangeModal open={!!pending} stage={pending?.stage || ''} leadName={pending?.lead.organization} onCancel={() => setPending(null)} onConfirm={(values) => pending && move(pending.lead, pending.stage, values)} />
     {quick && <div className="fixed inset-0 z-[70] flex items-end bg-slate-950/60 sm:items-center sm:justify-center sm:p-6">
       <section className="w-full rounded-t-xl bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-xl sm:p-6">
         <div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-bold">{quick.type === 'note' ? 'Add note' : 'Schedule follow-up'}</h2><p className="mt-1 text-sm text-slate-500">{quick.lead.organization}</p></div><button onClick={() => setQuick(null)} className="h-10 w-10 rounded-lg border font-bold">X</button></div>
         <textarea value={quickText} onChange={(event) => setQuickText(event.target.value)} placeholder={quick.type === 'note' ? 'Write the handling note...' : 'Follow-up purpose'} className="mt-4 h-28 w-full rounded-lg border px-3 py-3 text-sm" />
-        {quick.type === 'followup' && <input type="datetime-local" value={quickDate} onChange={(event) => setQuickDate(event.target.value)} className="mt-3 w-full rounded-lg border px-3 py-3 text-sm" />}
+        {quick.type === 'followup' && <>
+          <select value={quickAction} onChange={(event) => setQuickAction(event.target.value)} className="mt-3 w-full rounded-lg border px-3 py-3 text-sm">
+            <option value="CALL">Call client</option>
+            <option value="WHATSAPP">Send WhatsApp</option>
+            <option value="EMAIL">Send email</option>
+            <option value="TEAM_MEMBER">Contact through team member</option>
+            <option value="FOLLOW_UP">General follow-up</option>
+          </select>
+          <input type="datetime-local" value={quickDate} onChange={(event) => setQuickDate(event.target.value)} className="mt-3 w-full rounded-lg border px-3 py-3 text-sm" />
+        </>}
         <button disabled={!quickText.trim() || (quick.type === 'followup' && !quickDate)} onClick={saveQuick} className="mt-4 w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">Save</button>
       </section>
     </div>}

@@ -5,6 +5,8 @@ import { PrismaService } from '../database/prisma.service';
 export class ChatService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly categories = new Set(['TEAM', 'SALES', 'CLIENT_HANDLING', 'PROJECT', 'LEAD_DISCUSSION']);
+
   private isUnrestricted(user: { role: string }) {
     return ['OWNER', 'MANAGER'].includes(user.role);
   }
@@ -12,6 +14,27 @@ export class ChatService {
   private async employeeDirectChatAllowed() {
     const setting = await this.prisma.setting.findUnique({ where: { key: 'ALLOW_EMPLOYEE_DIRECT_CHAT' } });
     return setting?.value === 'true';
+  }
+
+  private normalizeCategory(category?: string) {
+    const normalized = category?.trim().toUpperCase() || 'TEAM';
+    if (!this.categories.has(normalized)) throw new BadRequestException('Invalid chat group category');
+    return normalized;
+  }
+
+  private async group(conversationId: string) {
+    const conversation = await this.prisma.chatConversation.findUnique({
+      where: { id: conversationId },
+      include: { members: true }
+    });
+    if (!conversation || !conversation.isGroup) throw new NotFoundException('Chat group not found');
+    return conversation;
+  }
+
+  private async auditGroup(actorId: string, action: string, conversationId: string, metadata?: Record<string, unknown>) {
+    await this.prisma.auditLog.create({
+      data: { actorId, action, entity: 'ChatConversation', entityId: conversationId, metadata: metadata as any }
+    });
   }
 
   async conversations(user: { sub: string; role: string }) {
@@ -81,8 +104,20 @@ export class ChatService {
     return { ok: true };
   }
 
-  async createGroup(title: string, createdById: string, memberIds: string[], linkedLeadId?: string, linkedDealId?: string) {
-    const conversation = await this.prisma.chatConversation.create({ data: { title, isGroup: true, createdById, linkedLeadId, linkedDealId } });
+  async createGroup(title: string, createdById: string, memberIds: string[], linkedLeadId?: string, linkedDealId?: string, category?: string) {
+    const cleanTitle = title?.trim();
+    if (!cleanTitle) throw new BadRequestException('Group name is required');
+    const conversation = await this.prisma.chatConversation.create({
+      data: {
+        title: cleanTitle,
+        isGroup: true,
+        category: this.normalizeCategory(category),
+        ownerId: createdById,
+        createdById,
+        linkedLeadId,
+        linkedDealId
+      }
+    });
     await this.prisma.chatMember.createMany({
       data: Array.from(new Set([createdById, ...memberIds])).map((userId) => ({
         conversationId: conversation.id,
@@ -91,7 +126,59 @@ export class ChatService {
       })),
       skipDuplicates: true
     });
+    await this.auditGroup(createdById, 'CREATE_CHAT_GROUP', conversation.id, { title: cleanTitle, category: conversation.category });
     return conversation;
+  }
+
+  async updateGroup(conversationId: string, body: { title?: string; category?: string; ownerId?: string }, user: { sub: string }) {
+    const conversation = await this.group(conversationId);
+    const data: { title?: string; category?: string; ownerId?: string } = {};
+    if (body.title !== undefined) {
+      const title = body.title.trim();
+      if (!title) throw new BadRequestException('Group name is required');
+      data.title = title;
+    }
+    if (body.category !== undefined) data.category = this.normalizeCategory(body.category);
+    if (body.ownerId !== undefined) {
+      const owner = conversation.members.find((member) => member.userId === body.ownerId);
+      if (!owner) throw new BadRequestException('New group owner must already be a member');
+      data.ownerId = body.ownerId;
+    }
+    const updated = await this.prisma.chatConversation.update({ where: { id: conversationId }, data });
+    await this.auditGroup(user.sub, 'UPDATE_CHAT_GROUP', conversationId, data);
+    return updated;
+  }
+
+  async addMembers(conversationId: string, memberIds: string[], user: { sub: string }) {
+    await this.group(conversationId);
+    const uniqueIds = Array.from(new Set(memberIds || []));
+    if (!uniqueIds.length) throw new BadRequestException('Select at least one team member');
+    const activeUsers = await this.prisma.user.findMany({
+      where: { id: { in: uniqueIds }, status: 'ACTIVE' },
+      select: { id: true }
+    });
+    await this.prisma.chatMember.createMany({
+      data: activeUsers.map(({ id }) => ({ conversationId, userId: id })),
+      skipDuplicates: true
+    });
+    await this.auditGroup(user.sub, 'ADD_CHAT_GROUP_MEMBERS', conversationId, { memberIds: activeUsers.map(({ id }) => id) });
+    return { ok: true, added: activeUsers.length };
+  }
+
+  async removeMember(conversationId: string, memberId: string, user: { sub: string }) {
+    const conversation = await this.group(conversationId);
+    const ownerId = conversation.ownerId || conversation.createdById;
+    if (memberId === ownerId) throw new BadRequestException('Transfer group ownership before removing the owner');
+    await this.prisma.chatMember.deleteMany({ where: { conversationId, userId: memberId } });
+    await this.auditGroup(user.sub, 'REMOVE_CHAT_GROUP_MEMBER', conversationId, { memberId });
+    return { ok: true };
+  }
+
+  async deleteGroup(conversationId: string, user: { sub: string }) {
+    const conversation = await this.group(conversationId);
+    await this.auditGroup(user.sub, 'DELETE_CHAT_GROUP', conversationId, { title: conversation.title });
+    await this.prisma.chatConversation.delete({ where: { id: conversationId } });
+    return { ok: true };
   }
 
   async createDirect(memberId: string, user: { sub: string; role: string }) {
